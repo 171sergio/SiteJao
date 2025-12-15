@@ -1,0 +1,11 @@
+# Ignore everything by default (useful if Vercel builds from repo root)
+*
+
+# Keep the Site-Barbearia-Jao Front folder and its contents
+!Site-Barbearia-Jão/
+Site-Barbearia-Jão/*
+!Site-Barbearia-Jão/Front/
+!Site-Barbearia-Jão/Front/**
+
+# (optional) keep README
+!README.md
