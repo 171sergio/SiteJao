@@ -507,36 +507,43 @@ function normalizePhone(phone) {
     // Remove todos os caracteres não numéricos
     let normalized = phone.replace(/\D/g, '');
     
-    // Se tem 13 dígitos e começa com 55, remove o código do país
+    // Se tem 13 dígitos e começa com 55, está no formato correto (55 + DDD + 9 + número)
     if (normalized.length === 13 && normalized.startsWith('55')) {
-        normalized = normalized.substring(2);
-    }
-    
-    // Se tem 12 dígitos e começa com 55, remove o código do país
-    if (normalized.length === 12 && normalized.startsWith('55')) {
-        normalized = normalized.substring(2);
-    }
-    
-    // Se tem 11 dígitos, está no formato correto (DDD + 9 + número)
-    if (normalized.length === 11) {
         return normalized;
     }
     
-    // Se tem 10 dígitos, adiciona o 9 após o DDD
+    // Se tem 12 dígitos e começa com 55 (sem o 9), adiciona o 9
+    if (normalized.length === 12 && normalized.startsWith('55')) {
+        const ddd = normalized.substring(2, 4);
+        const numero = normalized.substring(4);
+        return '55' + ddd + '9' + numero;
+    }
+    
+    // Se tem 11 dígitos (DDD + 9 + número), adiciona o 55
+    if (normalized.length === 11) {
+        return '55' + normalized;
+    }
+    
+    // Se tem 10 dígitos (DDD + número sem 9), adiciona 55 e o 9
     if (normalized.length === 10) {
         const ddd = normalized.substring(0, 2);
         const numero = normalized.substring(2);
-        normalized = ddd + '9' + numero;
+        return '55' + ddd + '9' + numero;
     }
     
-    // Se tem 9 dígitos, adiciona DDD padrão (31 - Belo Horizonte)
+    // Se tem 9 dígitos, adiciona 55 + DDD padrão (31 - Belo Horizonte)
     if (normalized.length === 9) {
-        normalized = '31' + normalized;
+        return '5531' + normalized;
     }
     
-    // Se tem 8 dígitos, adiciona DDD e o 9
+    // Se tem 8 dígitos, adiciona 55 + DDD + 9
     if (normalized.length === 8) {
-        normalized = '319' + normalized;
+        return '55319' + normalized;
+    }
+    
+    // Retorna com 55 na frente se não tiver
+    if (!normalized.startsWith('55') && normalized.length >= 11) {
+        return '55' + normalized;
     }
     
     // Debug removido para performance
@@ -547,6 +554,15 @@ function normalizePhone(phone) {
 function formatPhoneDisplay(phone) {
     const normalized = normalizePhone(phone);
     
+    // Formato com 55: 5531992936893 (13 dígitos)
+    if (normalized.length === 13 && normalized.startsWith('55')) {
+        const ddd = normalized.substring(2, 4);
+        const firstPart = normalized.substring(4, 9);
+        const secondPart = normalized.substring(9);
+        return `+55 (${ddd}) ${firstPart}-${secondPart}`;
+    }
+    
+    // Formato sem 55: 31992936893 (11 dígitos)
     if (normalized.length === 11) {
         const ddd = normalized.substring(0, 2);
         const firstPart = normalized.substring(2, 7);
