@@ -1,0 +1,946 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-not-from-me",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "752e7a62-71f0-43e4-bf28-751059a09ae0",
+              "leftValue": "={{ $json.body.data.key.senderPn }}",
+              "rightValue": "553193663334@s.whatsapp.net",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1680,
+        432
+      ],
+      "id": "9817cba2-8012-4e0e-b0d9-25dfe15a49f3",
+      "name": "Filtrar Mensagens1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "agendamentos",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "agendado"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        512,
+        0
+      ],
+      "id": "655084ac-0565-4463-a522-93d20288dd13",
+      "name": "Verificar Agendamentos Existentes1",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é o **Jão**, dono da Barbearia. 💈\nVocê fala pelo WhatsApp. Seja direto, curto e use gírias leves de Minas (uai, beleza, tranquilo).\n**NÃO** aja como um robô de telemarketing.\n\nPersonalidade e Tom de Voz:\n- Você é educado, prestativo e desenrolado.\n- Use linguagem natural de internet, mas com gramática correta (ex: pode usar \"vc\", \"tá\", mas nunca erros de concordância).\n- JAMAIS responda com frases soltas no infinitivo como \"O que precisar?\". Sempre use frases completas e convidativas.\n- Exemplo ERRADO: \"O que precisar?\"\n- Exemplo CORRETO: \"Se precisar de algo, é só chamar!\" ou \"Como posso te ajudar agora?\"\n- Use emojis com moderação (💈, ✂️, 👊).\n\nInstruções de Resposta:\n1. Se o cliente cumprimentar, responda com cordialidade e pergunte como pode ajudar.\n2. Se o cliente agradecer, diga \"Tamo junto!\" ou \"Imagina, precisando é só chamar\".\n3. Mantenha as respostas curtas e objetivas, ideais para WhatsApp.\n\n**REGRAS DE COMUNICAÇÃO (IMPORTANTE):**\n1. **Zero Repetição:** Se você já cumprimentou o cliente antes na conversa, **NÃO** diga \"Olá\" ou \"Tudo bem\" de novo. Vá direto ao assunto.\n2. **Sem Textão:** Responda em 1 ou 2 frases no máximo.\n3. **Emojis:** Use no máximo 1 emoji por mensagem.\n4. **Naturalidade:** Em vez de \"Confirma a alteração para o horário X?\", diga \"Fechado então pras 10h? Posso confirmar?\".\n\n**INFORMAÇÕES DA BARBEARIA:**\n\n📋 **SERVIÇOS:** Corte (30), Máquina (25), Barba (20), Pezinho (15), Sobrancelha (20), Relaxamento (20), Luzes (50), Platinado (90), Combo (65).\n\n🕐 **HORÁRIOS:** Ter-Qui (9-19h), Sex (8-19h), Sáb (8-17h). Dom/Seg fechado.\n\n**CONTEXTO TEMPORAL:**\n• **HOJE É:** {{ $now.setZone('America/Sao_Paulo').toFormat('dd/MM/yyyy (cccc)') }}\n• Converta sempre termos como \"amanhã\", \"sexta\" ou \"semana que vem\" para datas SQL (YYYY-MM-DD).\n\n**DADOS DO CLIENTE:**\n• Nome: {{ $('Organização').first().json.Nome }}\n• Telefone: {{ $('Organização').first().json.telefone }}\n• Mensagem Atual: \"{{ $('Concatenação').first().json.List_msg }}\"\n• Histórico Recente: {{ JSON.stringify($('GeraContexto1').all().map(i => i.json).slice(-3)) }}\n\n**AGENDAMENTOS DO CLIENTE:**\n{{ JSON.stringify($('Verificar Agendamentos Existentes1').all().map(i => i.json), null, 2) }}\n\nINSTRUÇÕES DE AÇÃO:\n\n1. **REAGENDAMENTO (Alterar Dia e/ou Horário):**\n   - Se o cliente quiser trocar o horário, mudar para outro dia ou adiar:\n     1. Identifique o **ID** do agendamento existente na lista de contexto.\n     2. Use a tool **\"Atualizar Agendamento\"**.\n     3. Preencha o `id` do agendamento.\n     4. No campo `data_horario`, envie a **NOVA data completa combinada com o horário** (formato obrigatório: `YYYY-MM-DD HH:mm:ss`).\n        - *Nota Importante: Se ele mudar só o dia, combine o novo dia com a hora antiga. Se mudar só a hora, combine o dia antigo com a nova hora.*\n     5. **NÃO** cancele para criar outro. Use sempre a atualização.\n\n2. **NOVO AGENDAMENTO:**\n   - Use a tool **\"Inserir Agendamento\"**.\n   - Converta a data e hora solicitadas para o formato `YYYY-MM-DD HH:mm:ss`.\n\n3. CANCELAMENTO:\n   - Identifique o ID na lista \"AGENDAMENTOS DO CLIENTE\".\n   - OBRIGATÓRIO: Execute a tool \"Cancelar Agendamento\" enviando o ID.\n   - Só confirme no chat após o uso da tool.\n\n4. **CONSULTAS:**\n   - Se ele perguntar horários disponíveis ou preços, responda de forma curta e direta.\n\nPROTOCOLO DE AÇÃO (IMPORTANTE):\n1. Antes de responder ao cliente, VERIFIQUE se é necessária uma ação no banco de dados (Agendar, Editar, Cancelar).\n2. Se for necessária uma ação, você DEVE INVOCAR A TOOL respectiva PRIMEIRO.\n3. Somente após a tool retornar sucesso, você envia a resposta de confirmação para o cliente.\n4. JAMAIS diga que agendou ou cancelou sem ter usado a tool de fato.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        912,
+        0
+      ],
+      "id": "b6999a37-fde7-4f08-b134-6582dab6abf7",
+      "name": "Assistente IA1",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "tableId": "logs_atendimento",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "telefone",
+              "fieldValue": "={{ $('Organização').item.json.telefone }}"
+            },
+            {
+              "fieldId": "nome_contato",
+              "fieldValue": "={{ $('Organização').item.json.Nome }}"
+            },
+            {
+              "fieldId": "mensagem_recebida",
+              "fieldValue": "={{ $('Concatenação').item.json.List_msg }}"
+            },
+            {
+              "fieldId": "resposta_enviada",
+              "fieldValue": "={{ $('Assistente IA1').item.json.output }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('Organização').item.json.msg.Timestamp }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        0
+      ],
+      "id": "93b41b7c-a7b0-4336-a40d-129684d7c72d",
+      "name": "Log Interação1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1792,
+        624
+      ],
+      "id": "1b34d16d-1695-470f-8b9f-0076cb4ec458",
+      "name": "Ignorar Mensagem1"
+    },
+    {
+      "parameters": {
+        "tableId": "agendamentos",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "telefone",
+              "fieldValue": "={{ $fromAI('telefone') }}"
+            },
+            {
+              "fieldId": "nome_cliente",
+              "fieldValue": "={{ $fromAI('nome_cliente') }}"
+            },
+            {
+              "fieldId": "servico",
+              "fieldValue": "={{ $fromAI('servico') }}"
+            },
+            {
+              "fieldId": "data_horario",
+              "fieldValue": "={{ $fromAI('data_horario') }}"
+            },
+            {
+              "fieldId": "horario_inicio",
+              "fieldValue": "={{ $fromAI('horario_inicio') }}"
+            },
+            {
+              "fieldId": "horario_fim",
+              "fieldValue": "={{ $fromAI('horario_fim') }}"
+            },
+            {
+              "fieldId": "preco",
+              "fieldValue": "={{ $fromAI('preco') }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "agendado"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        304
+      ],
+      "id": "ad013115-03b0-4bbd-9648-1b8feb788a03",
+      "name": "Inserir Agendamento1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "agendamentos",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefone",
+              "condition": "eq",
+              "keyValue": "={{ $fromAI('telefone') }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "agendado"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        272
+      ],
+      "id": "ff69fc7e-d568-4bf7-9912-099a3bacac49",
+      "name": "Consultar Agendamentos1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "agendamentos",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $fromAI('agendamento_id') }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "cancelado"
+            },
+            {
+              "fieldId": "cancelado_em",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        208
+      ],
+      "id": "4af344ec-9ba7-4b8c-9f0b-c5b413a3ae43",
+      "name": "Cancelar Agendamento1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "logs_atendimento",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefone",
+              "condition": "eq",
+              "keyValue": "={{ $('Organização').item.json.telefone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b6bfc5d3-6eb5-4b23-a1c4-22926e73dd4e",
+      "name": "GeraContexto1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        944,
+        224
+      ],
+      "id": "72a45bb7-7cc9-4823-a7f0-4cb6cc969e9b",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "gBFgpCVstf1Dkdu1",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "64958da2-ffc8-406b-91bc-be88f2eedf33",
+              "name": "msg.telefone",
+              "value": "={{ $('Webhook').item.json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "800a3abe-4547-4e0a-a0d0-26dee4d37cab",
+              "name": "msg.id_msg",
+              "value": "={{ $('Webhook').item.json.body.data.key.id }}",
+              "type": "string"
+            },
+            {
+              "id": "1f228421-120b-4181-b250-e3bc3848dedf",
+              "name": "msg.msgtext",
+              "value": "={{ $('Webhook').item.json.body.data.message.conversation }}",
+              "type": "string"
+            },
+            {
+              "id": "9ebc4138-caac-4015-8660-a8e5c4914c18",
+              "name": "msg.messageType",
+              "value": "={{ $('Webhook').item.json.body.data.messageType }}",
+              "type": "string"
+            },
+            {
+              "id": "a9086316-d9a7-448f-9881-c274684c15fe",
+              "name": "msg.Timestamp",
+              "value": "={{ $('Webhook').item.json.body.data.messageTimestamp.toDateTime('s').toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "34ee38e4-b22b-4004-9271-8514d34154c3",
+              "name": "telefone",
+              "value": "={{ $('Webhook').item.json.body.data.key.senderPn.replace('@s.whatsapp.net', '').replace(/^(\\d{4})/, '$19') }}",
+              "type": "string"
+            },
+            {
+              "id": "ed9f9522-21ed-4575-921a-b52917f08608",
+              "name": "Nome",
+              "value": "={{ $json.body.data.pushName }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1360,
+        272
+      ],
+      "id": "9101469f-9690-41f2-959f-63fbe91e4a60",
+      "name": "Organização"
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "={{ $json.msg.telefone }}",
+        "messageData": "={{ JSON.stringify($json.msg) }}",
+        "tail": true
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        272
+      ],
+      "id": "9e0b0f24-05f8-4d11-9340-b4d2a41fc620",
+      "name": "Enviar ",
+      "credentials": {
+        "redis": {
+          "id": "OM0HaK5pHW7T1GdG",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "List_array",
+        "key": "={{ $('Organização').item.json.msg.telefone }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        272
+      ],
+      "id": "c4067141-e104-4755-811b-2f343a9e0405",
+      "name": "Buscar",
+      "credentials": {
+        "redis": {
+          "id": "OM0HaK5pHW7T1GdG",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ JSON.parse($json.List_array.first()).id_msg }}",
+                    "rightValue": "={{ $('Organização').item.json.msg.id_msg }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    },
+                    "id": "ee1d0f1b-e0ce-4276-863b-f396d9d89310"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=Nada a fazer"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a8f8b22a-4a5d-4f02-853d-a112724bfcbf",
+                    "leftValue": "={{ JSON.parse($json.List_array.last()).Timestamp }}",
+                    "rightValue": "={{ $now.minus(15, 'seconds') }}",
+                    "operator": {
+                      "type": "dateTime",
+                      "operation": "before"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Prossegir"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Esperar "
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -704,
+        272
+      ],
+      "id": "17772207-ff06-499c-b21d-03c592dbd05f",
+      "name": "Switch"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        48
+      ],
+      "id": "1756adc2-972d-4f33-8224-7b21dda8c785",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -256,
+        432
+      ],
+      "id": "cb23a3f4-6e93-4ff3-9221-c1891a7f49e1",
+      "name": "Wait",
+      "webhookId": "89c4dc0a-680f-4af5-87f7-e4cfd48fb20a"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0375096d-575e-44e6-ac49-06b7ed39d1a3",
+              "name": "List_msg",
+              "value": "={{ $json.List_array.map(valor => JSON.parse(valor).msgtext).join('\\n') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -112,
+        272
+      ],
+      "id": "680ef563-a0a8-4dde-99c3-ec2091bf056f",
+      "name": "Concatenação"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Organização').item.json.msg.telefone }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        272
+      ],
+      "id": "bc77995d-9157-4ae9-be9d-adbb1c0fdd71",
+      "name": "Delete1",
+      "credentials": {
+        "redis": {
+          "id": "OM0HaK5pHW7T1GdG",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "barbearia-webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2000,
+        432
+      ],
+      "id": "0888633d-e5a6-4071-8d16-dc7b0ba7e9ea",
+      "name": "Webhook",
+      "webhookId": "5b5fb5a8-0c12-45f9-9dca-c4d57385ff48"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "Sergio",
+        "remoteJid": "={{ $('Organização').item.json.telefone }}",
+        "messageText": "={{ $('Assistente IA1').item.json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "c692b843-bec8-4fc4-893a-a7f28ae29769",
+      "name": "Enviar texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "D0smI7yyRsAzabKR",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "agendamentos",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "servico",
+              "fieldValue": "={{ $fromAI('fieldValues0_Field_Value', `Tipo de serviço(corte, pezinho, ou o que o cliente pedir)`, 'string') }}"
+            },
+            {
+              "fieldId": "data_horario",
+              "fieldValue": "={{ $fromAI('fieldValues1_Field_Value', `Nova data e horário(De acordo com o pedido do cliente)`, 'string') }}"
+            },
+            {
+              "fieldId": "horario_inicio",
+              "fieldValue": "={{ $fromAI('fieldValues2_Field_Value', `Novo horário de ínicio do serviço.`, 'string') }}"
+            },
+            {
+              "fieldId": "horario_fim",
+              "fieldValue": "={{ $fromAI('fieldValues3_Field_Value', `Geralmente é o novo horário de ínicio + 30 min, ou mais dependendo do serviço.`, 'string') }}"
+            },
+            {
+              "fieldId": "preco",
+              "fieldValue": "={{ $fromAI('fieldValues4_Field_Value', `Preço do novo serviço, caso ele seja alterado pelo cliente.`, 'number') }}"
+            },
+            {
+              "fieldId": "atualizado_em",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        208
+      ],
+      "id": "0f713745-f90e-4e64-9f83-ac2ec395a03c",
+      "name": "Editar Agendamento",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HNsB94e0wuXPSddl",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Filtrar Mensagens1": {
+      "main": [
+        [
+          {
+            "node": "Organização",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar Mensagem1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Agendamentos Existentes1": {
+      "main": [
+        [
+          {
+            "node": "Assistente IA1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assistente IA1": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir Agendamento1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente IA1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Agendamentos1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente IA1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar Agendamento1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente IA1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GeraContexto1": {
+      "main": [
+        [
+          {
+            "node": "Verificar Agendamentos Existentes1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Assistente IA1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Organização": {
+      "main": [
+        [
+          {
+            "node": "Enviar ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar ": {
+      "main": [
+        [
+          {
+            "node": "Buscar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Buscar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concatenação": {
+      "main": [
+        [
+          {
+            "node": "GeraContexto1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete1": {
+      "main": [
+        [
+          {
+            "node": "Concatenação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Mensagens1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto": {
+      "main": [
+        [
+          {
+            "node": "Log Interação1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Editar Agendamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente IA1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "host": "n8n.saslabs.me",
+          "user-agent": "axios/1.10.0",
+          "content-length": "926",
+          "accept": "application/json, text/plain, */*",
+          "accept-encoding": "gzip, compress, deflate, br",
+          "content-type": "application/json",
+          "x-forwarded-for": "172.18.0.1",
+          "x-forwarded-host": "n8n.saslabs.me",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "b3694bb9d8f6",
+          "x-real-ip": "172.18.0.1"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "event": "messages.upsert",
+          "instance": "Sergio",
+          "data": {
+            "key": {
+              "remoteJid": "18971457810485@lid",
+              "fromMe": false,
+              "id": "AC17A9E0942B247437E4E9AF31B90197",
+              "senderPn": "553193663334@s.whatsapp.net"
+            },
+            "pushName": "Power Bi Embed",
+            "status": "DELIVERY_ACK",
+            "message": {
+              "conversation": "Quero cancelar meu agendamento por favor.",
+              "messageContextInfo": {
+                "deviceListMetadata": {
+                  "senderKeyHash": "IC41Ebs0DBzPHw==",
+                  "senderTimestamp": "1764609048",
+                  "recipientKeyHash": "9PkfBrhsnNJOzw==",
+                  "recipientTimestamp": "1765224409"
+                },
+                "deviceListMetadataVersion": 2,
+                "messageSecret": "RcJ5u+7Mi4fUWtFkx5UAfT+OeaWyAhzFOVH6y6+nkUs="
+              }
+            },
+            "messageType": "conversation",
+            "messageTimestamp": 1765323007,
+            "instanceId": "8c6cfb08-4bc0-43a8-85f1-22deae982542",
+            "source": "android"
+          },
+          "destination": "https://n8n.saslabs.me/webhook/barbearia-webhook",
+          "date_time": "2025-12-09T20:30:07.279Z",
+          "sender": "553192936893@s.whatsapp.net",
+          "server_url": "https://evo.saslabs.me",
+          "apikey": "874E9AB6622A-4DFA-BCB0-44A4D8504D84"
+        },
+        "webhookUrl": "https://n8n.saslabs.me/webhook/barbearia-webhook",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c149310bd6bf9a4c50d8ca667127dab6e7e10c3f5a34539c9dbe12ca45aefe93"
+  }
+}
