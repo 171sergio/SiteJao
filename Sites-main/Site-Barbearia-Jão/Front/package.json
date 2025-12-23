@@ -1,0 +1,11 @@
+{
+  "name": "site-barbearia-jao",
+  "version": "1.0.0",
+  "description": "Frontend da Barbearia do Jão",
+  "scripts": {
+    "build": "node build-config.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

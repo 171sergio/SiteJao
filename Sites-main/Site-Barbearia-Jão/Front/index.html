@@ -232,6 +232,9 @@
                         <button id="addClientBtn" class="add-btn" onclick="openAddClientModal()">
                             <i class="fas fa-plus"></i> Novo Cliente
                         </button>
+                        <button id="importContactsBtn" class="add-btn" onclick="openImportContactsModal()" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                            <i class="fas fa-download"></i> Importar Contatos
+                        </button>
                         <div class="search-container">
                             <input type="text" id="clientSearch" placeholder="Buscar cliente..." class="search-input" onkeyup="if(event.key==='Enter') loadClients()">
                             <i class="fas fa-search search-icon"></i>
@@ -679,6 +682,33 @@
             <div class="modal-footer">
                 <button type="button" class="btn-cancel" onclick="closeAddClientModal()">Cancelar</button>
                 <button type="submit" form="addClientForm" class="btn-save">Adicionar Cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Importar Contatos via WhatsApp -->
+    <div id="importContactsModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h4><i class="fas fa-download"></i> Importar Contatos do WhatsApp</h4>
+                <span class="close" onclick="closeImportContactsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="color: #b0b0b0; margin-bottom: 20px;">Informe seu primeiro nome para importar os contatos da sua instância do WhatsApp.</p>
+                
+                <div class="form-group">
+                    <label>Seu primeiro nome:</label>
+                    <input type="text" id="importContactsName" placeholder="Ex: João" required>
+                </div>
+                
+                <div id="importContactsStatus" style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeImportContactsModal()">Cancelar</button>
+                <button type="button" class="btn-save" id="importContactsBtn" onclick="importContactsFromWhatsApp()">
+                    <i class="fas fa-download"></i> Importar
+                </button>
             </div>
         </div>
     </div>

@@ -4318,3 +4318,93 @@ function selectClientFromSearch(client) {
 window.openClientSearchModal = openClientSearchModal;
 window.closeClientSearchModal = closeClientSearchModal;
 window.searchExistingClients = searchExistingClients;
+
+// ==================== IMPORTAÇÃO DE CSV ====================
+
+let csvParsedData = []; // Dados parseados do CSV
+let csvValidContacts = []; // Contatos válidos para importar
+
+// Função para abrir modal de importação CSV
+// ==================== IMPORTAÇÃO DE CONTATOS VIA WEBHOOK ====================
+
+// Função para abrir modal de importação de contatos
+function openImportContactsModal() {
+    const modal = document.getElementById('importContactsModal');
+    modal.style.display = 'block';
+    
+    // Resetar estado
+    document.getElementById('importContactsName').value = '';
+    document.getElementById('importContactsStatus').style.display = 'none';
+    document.getElementById('importContactsStatus').innerHTML = '';
+}
+
+// Função para fechar modal de importação de contatos
+function closeImportContactsModal() {
+    const modal = document.getElementById('importContactsModal');
+    modal.style.display = 'none';
+}
+
+// Função para importar contatos do WhatsApp via webhook n8n
+async function importContactsFromWhatsApp() {
+    const nome = document.getElementById('importContactsName').value.trim();
+    
+    if (!nome) {
+        showNotification('Por favor, informe seu primeiro nome.', 'warning');
+        document.getElementById('importContactsName').focus();
+        return;
+    }
+    
+    const statusDiv = document.getElementById('importContactsStatus');
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = 'rgba(23, 162, 184, 0.2)';
+    statusDiv.style.color = '#17a2b8';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando contatos, aguarde...';
+    
+    try {
+        const response = await fetch('https://n8n.saslabs.tech/webhook/importar-contatos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nome: nome })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Mostrar resultado de sucesso
+        statusDiv.style.background = 'rgba(40, 167, 69, 0.2)';
+        statusDiv.style.color = '#28a745';
+        
+        if (result.total_importados !== undefined) {
+            statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${result.total_importados} contatos importados com sucesso!`;
+        } else if (result.message) {
+            statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+        } else {
+            statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Importação iniciada! Os contatos serão processados em breve.';
+        }
+        
+        showNotification('Importação de contatos iniciada!', 'success');
+        
+        // Recarregar lista de clientes após 3 segundos
+        setTimeout(() => {
+            loadClients();
+            closeImportContactsModal();
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Erro ao importar contatos:', error);
+        statusDiv.style.background = 'rgba(220, 53, 69, 0.2)';
+        statusDiv.style.color = '#dc3545';
+        statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Erro: ${error.message}`;
+        showNotification('Erro ao importar contatos: ' + error.message, 'error');
+    }
+}
+
+// Expor funções de importação de contatos
+window.openImportContactsModal = openImportContactsModal;
+window.closeImportContactsModal = closeImportContactsModal;
+window.importContactsFromWhatsApp = importContactsFromWhatsApp;
