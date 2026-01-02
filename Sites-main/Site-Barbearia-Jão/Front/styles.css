@@ -640,12 +640,15 @@ body {
 .appointments-table-container {
     background: rgba(44, 44, 44, 0.8);
     border-radius: 15px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     border: 1px solid rgba(220, 38, 38, 0.2);
+    -webkit-overflow-scrolling: touch;
 }
 
 .appointments-table {
     width: 100%;
+    min-width: 800px;
     border-collapse: collapse;
 }
 
@@ -1896,13 +1899,16 @@ body {
 .clients-table-container {
     background: rgba(44, 44, 44, 0.8);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(220, 38, 38, 0.2);
+    -webkit-overflow-scrolling: touch;
 }
 
 .clients-table {
     width: 100%;
+    min-width: 900px;
     border-collapse: collapse;
     font-size: 0.95rem;
 }
@@ -2705,7 +2711,9 @@ body {
     background: rgba(44, 44, 44, 0.8);
     border-radius: 15px;
     border: 1px solid rgba(220, 38, 38, 0.2);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .unpaid-table-container .appointments-table {
@@ -3454,4 +3462,117 @@ body {
 
 #importCsvConfirmBtn:not(:disabled):hover {
     background: linear-gradient(135deg, #218838, #1e7e34);
+}
+
+/* =====================
+   Scroll Horizontal Mobile
+   Melhorias para visualização em celular
+   ===================== */
+
+/* Garantir scroll horizontal em todas as tabelas */
+.appointments-table-container,
+.clients-table-container,
+.unpaid-table-container,
+.csv-preview-table-container {
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(220, 38, 38, 0.5) rgba(0, 0, 0, 0.2);
+}
+
+/* Estilizar scrollbar para melhor visualização */
+.appointments-table-container::-webkit-scrollbar,
+.clients-table-container::-webkit-scrollbar,
+.unpaid-table-container::-webkit-scrollbar,
+.csv-preview-table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.appointments-table-container::-webkit-scrollbar-track,
+.clients-table-container::-webkit-scrollbar-track,
+.unpaid-table-container::-webkit-scrollbar-track,
+.csv-preview-table-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.appointments-table-container::-webkit-scrollbar-thumb,
+.clients-table-container::-webkit-scrollbar-thumb,
+.unpaid-table-container::-webkit-scrollbar-thumb,
+.csv-preview-table-container::-webkit-scrollbar-thumb {
+    background: rgba(220, 38, 38, 0.5);
+    border-radius: 4px;
+}
+
+.appointments-table-container::-webkit-scrollbar-thumb:hover,
+.clients-table-container::-webkit-scrollbar-thumb:hover,
+.unpaid-table-container::-webkit-scrollbar-thumb:hover,
+.csv-preview-table-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(220, 38, 38, 0.7);
+}
+
+/* Garantir que os botões de ação sempre sejam visíveis */
+@media (max-width: 768px) {
+    /* Adicionar padding extra nas células de ações */
+    .appointments-table td:last-child,
+    .clients-table td:last-child {
+        padding-right: 20px;
+        white-space: nowrap;
+    }
+    
+    /* Garantir que os botões não sejam comprimidos */
+    .action-btn,
+    .edit-btn,
+    .delete-btn,
+    .whatsapp-btn {
+        flex-shrink: 0;
+        min-width: 35px;
+    }
+    
+    /* Indicador visual de scroll horizontal */
+    .appointments-table-container::after,
+    .clients-table-container::after,
+    .unpaid-table-container::after {
+        content: '← Deslize para ver mais →';
+        display: block;
+        text-align: center;
+        padding: 8px;
+        background: rgba(220, 38, 38, 0.1);
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.75rem;
+        font-style: italic;
+        border-top: 1px solid rgba(220, 38, 38, 0.2);
+    }
+    
+    /* Ocultar indicador quando já rolou */
+    .appointments-table-container.scrolled::after,
+    .clients-table-container.scrolled::after,
+    .unpaid-table-container.scrolled::after {
+        display: none;
+    }
+    
+    /* Ajustar section-actions para scroll horizontal se necessário */
+    .section-actions {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+    
+    .section-actions::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+    
+    /* Garantir que filtros também permitam scroll */
+    .filters {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .filters::-webkit-scrollbar {
+        display: none;
+    }
 }

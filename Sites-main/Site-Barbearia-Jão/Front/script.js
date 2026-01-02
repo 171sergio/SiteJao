@@ -4408,3 +4408,52 @@ async function importContactsFromWhatsApp() {
 window.openImportContactsModal = openImportContactsModal;
 window.closeImportContactsModal = closeImportContactsModal;
 window.importContactsFromWhatsApp = importContactsFromWhatsApp;
+
+// =====================================================
+// SCROLL HORIZONTAL MOBILE - Indicador de deslize
+// =====================================================
+
+function initScrollIndicators() {
+    // Selecionar todos os containers de tabela
+    const tableContainers = document.querySelectorAll(
+        '.appointments-table-container, .clients-table-container, .unpaid-table-container'
+    );
+    
+    tableContainers.forEach(container => {
+        // Adicionar evento de scroll
+        container.addEventListener('scroll', function() {
+            // Se já scrollou, adicionar classe 'scrolled' para ocultar o indicador
+            if (this.scrollLeft > 10) {
+                this.classList.add('scrolled');
+            } else {
+                this.classList.remove('scrolled');
+            }
+        }, { passive: true });
+        
+        // Verificar se precisa do indicador na inicialização
+        checkScrollIndicator(container);
+    });
+}
+
+function checkScrollIndicator(container) {
+    // Se o conteúdo não é maior que o container, ocultar o indicador
+    if (container.scrollWidth <= container.clientWidth) {
+        container.classList.add('scrolled');
+    }
+}
+
+// Inicializar indicadores quando a página carregar
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initScrollIndicators);
+} else {
+    initScrollIndicators();
+}
+
+// Re-verificar indicadores quando mudar de seção ou carregar dados
+const originalShowSection = window.showSection;
+if (originalShowSection) {
+    window.showSection = function(sectionId) {
+        originalShowSection(sectionId);
+        setTimeout(initScrollIndicators, 100);
+    };
+}
