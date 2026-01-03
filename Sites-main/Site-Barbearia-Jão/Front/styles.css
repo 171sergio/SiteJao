@@ -945,13 +945,24 @@ body {
 
 .time-slots {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+/* Scroll horizontal para mobile */
+@media (max-width: 768px) {
+    .time-slots {
+        grid-template-columns: repeat(auto-fit, minmax(70px, 80px));
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 .time-slot {
-    padding: 12px 16px;
-    border-radius: 10px;
+    padding: 8px 6px;
+    border-radius: 8px;
     text-align: center;
     font-weight: 500;
     transition: all 0.3s ease;
@@ -959,6 +970,11 @@ body {
     position: relative;
     overflow: hidden;
     border: 2px solid transparent;
+    min-height: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .time-slot::before {
@@ -1032,12 +1048,12 @@ body {
 }
 
 .time-slot.occupied.secondary-slot .slot-time {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     opacity: 0.7;
 }
 
 .time-slot.occupied.secondary-slot .slot-client {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     opacity: 0.6;
     font-style: italic;
 }
@@ -1050,14 +1066,18 @@ body {
 }
 
 .slot-time {
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .slot-client {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .schedule-summary {
@@ -1092,6 +1112,149 @@ body {
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     font-weight: 500;
+}
+
+/* Filtros de agendamentos no modal de inadimplentes */
+.appointment-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.appointment-filters .filter-select,
+.appointment-filters .filter-date {
+    width: 100%;
+    padding: 10px 12px;
+    background: rgba(31, 31, 31, 0.9);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.appointment-filters .filter-select:focus,
+.appointment-filters .filter-date:focus {
+    outline: none;
+    border-color: rgba(220, 38, 38, 0.6);
+    background: rgba(31, 31, 31, 1);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.appointment-filters .filter-select option {
+    background: #1f1f1f;
+    color: #fff;
+    padding: 8px;
+}
+
+.appointment-filters .filter-date {
+    color-scheme: dark;
+}
+
+.btn-clear-filters {
+    padding: 10px 12px;
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: 8px;
+    color: #dc2626;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 42px;
+}
+
+.btn-clear-filters:hover {
+    background: rgba(220, 38, 38, 0.3);
+    border-color: rgba(220, 38, 38, 0.6);
+    transform: scale(1.05);
+}
+
+.btn-clear-filters i {
+    font-size: 1rem;
+}
+
+/* Select de agendamentos com altura maior para mostrar múltiplas opções */
+#addUnpaidAppointment {
+    min-height: 200px;
+    max-height: 300px;
+    padding: 0;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.85rem;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+#addUnpaidAppointment option {
+    padding: 12px 15px;
+    margin: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.5;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+#addUnpaidAppointment option:hover,
+#addUnpaidAppointment option:focus {
+    background: rgba(220, 38, 38, 0.2);
+    color: #fff;
+    outline: none;
+}
+
+#addUnpaidAppointment option:checked,
+#addUnpaidAppointment option:active {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.4) 0%, rgba(79, 195, 247, 0.2) 100%);
+    color: #fff;
+    font-weight: 600;
+}
+
+#addUnpaidAppointment option[disabled] {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    cursor: not-allowed;
+}
+
+/* Scrollbar personalizada para o select */
+#addUnpaidAppointment::-webkit-scrollbar {
+    width: 8px;
+}
+
+#addUnpaidAppointment::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+#addUnpaidAppointment::-webkit-scrollbar-thumb {
+    background: rgba(220, 38, 38, 0.5);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+#addUnpaidAppointment::-webkit-scrollbar-thumb:hover {
+    background: rgba(220, 38, 38, 0.7);
+}
+
+@media (max-width: 768px) {
+    .appointment-filters {
+        grid-template-columns: 1fr;
+    }
+    
+    .btn-clear-filters {
+        width: 100%;
+    }
 }
 
 .today-btn, .tomorrow-btn {

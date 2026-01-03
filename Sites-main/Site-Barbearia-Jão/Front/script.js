@@ -362,13 +362,15 @@ async function findOrCreateClient(telefone, nome) {
 
     // Formatar telefone para o padrão 55 XX 9XXXX-XXXX
     const formattedPhone = formatarTelefone(telefone);
+    // Normalizar telefone (só dígitos) para buscar no banco
+    const normalizedPhone = normalizePhone(telefone);
     
     try {
-        // Primeiro, tentar encontrar cliente existente
+        // Primeiro, tentar encontrar cliente existente pelo telefone_normalizado
         const { data: existingClient, error: searchError } = await supabaseClient
             .from('clientes')
             .select('*')
-            .eq('telefone', formattedPhone)
+            .eq('telefone_normalizado', normalizedPhone)
             .single();
 
         if (searchError && searchError.code !== 'PGRST116') {
@@ -461,9 +463,10 @@ async function checkTimeConflictSupabase(date, startTime, endTime, excludeId = n
     try {
         let query = supabaseClient
             .from('vw_agendamentos_completos')
-            .select('id, cliente_nome, horario_inicio, horario_fim')
+            .select('id, cliente_nome, horario_inicio, horario_fim, status')
             .gte('data_horario', `${date}T00:00:00`)
-            .lte('data_horario', `${date}T23:59:59`);
+            .lte('data_horario', `${date}T23:59:59`)
+            .neq('status', 'cancelado'); // Ignorar agendamentos cancelados
         
         if (excludeId) {
             query = query.neq('id', excludeId);
@@ -473,16 +476,25 @@ async function checkTimeConflictSupabase(date, startTime, endTime, excludeId = n
         
         if (error) throw error;
         
+        // Função auxiliar para converter horário em minutos para comparação precisa
+        const timeToMinutes = (time) => {
+            if (!time) return 0;
+            const parts = time.split(':');
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        };
+        
+        const newStart = timeToMinutes(startTime);
+        const newEnd = timeToMinutes(endTime);
+        
         for (const apt of existingAppointments || []) {
-            const aptStart = apt.horario_inicio;
-            const aptEnd = apt.horario_fim;
+            const aptStart = timeToMinutes(apt.horario_inicio);
+            const aptEnd = timeToMinutes(apt.horario_fim);
             
             // Verificar sobreposição de horários
-            if (
-                (startTime >= aptStart && startTime < aptEnd) || // Início dentro do agendamento existente
-                (endTime > aptStart && endTime <= aptEnd) ||     // Fim dentro do agendamento existente
-                (startTime <= aptStart && endTime >= aptEnd)     // Agendamento novo engloba o existente
-            ) {
+            // Conflito: novo começa antes do existente terminar E novo termina depois do existente começar
+            // Permitido: novo começa exatamente quando existente termina (newStart == aptEnd)
+            // Permitido: novo termina exatamente quando existente começa (newEnd == aptStart)
+            if (newStart < aptEnd && newEnd > aptStart) {
                 return {
                     conflict: true,
                     conflictWith: {
@@ -625,7 +637,7 @@ function getFormattedTime(appointment) {
     return '';
 }
 
-// Função para calcular todos os slots de 30 minutos ocupados durante um período
+// Função para calcular todos os slots de 15 minutos ocupados durante um período
 function getOccupiedTimeSlots(startTime, endTime) {
     const slots = [];
     
@@ -649,14 +661,25 @@ function getOccupiedTimeSlots(startTime, endTime) {
     const startTotalMinutes = startHours * 60 + startMinutes;
     const endTotalMinutes = endHours * 60 + endMinutes;
     
-    // Gerar todos os slots de 30 minutos no período
-    for (let minutes = startTotalMinutes; minutes < endTotalMinutes; minutes += 30) {
+    // Gerar todos os slots de 15 minutos no período
+    for (let minutes = startTotalMinutes; minutes < endTotalMinutes; minutes += 15) {
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
         const timeSlot = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
         slots.push(timeSlot);
     }
     
+    return slots;
+}
+
+// Função para gerar slots de 15 minutos entre dois horários (inclusive o horário final)
+function generate15MinSlots(horaInicio, horaFim) {
+    const toMins = h => { const [hh, mm] = h.split(':').map(Number); return hh*60 + mm; };
+    const fromMins = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+    const start = toMins(horaInicio), end = toMins(horaFim);
+    const slots = [];
+    // Usa <= para incluir o horário final (ex: 12:00)
+    for (let t = start; t <= end; t += 15) slots.push(fromMins(t));
     return slots;
 }
 
@@ -1400,6 +1423,7 @@ function renderScheduleGrid(appointments, selectedDate) {
     const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Segunda, etc.
     
     // Configuração dos horários de funcionamento baseado no dia
+    // Slots de 15 minutos para maior granularidade
     let workingHours = { morning: [], afternoon: [] };
     let isClosed = false;
     
@@ -1407,18 +1431,18 @@ function renderScheduleGrid(appointments, selectedDate) {
         isClosed = true;
     } else if (dayOfWeek >= 2 && dayOfWeek <= 4) { // Terça a Quinta: 9h às 19h
         workingHours = {
-            morning: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
-            afternoon: ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00']
+            morning: generate15MinSlots('09:00', '12:00'),   // 9:00 até 12:00 (inclui 11:45)
+            afternoon: generate15MinSlots('13:00', '19:00')  // 13:00 até 19:00 (inclui 18:45)
         };
     } else if (dayOfWeek === 5) { // Sexta: 8h às 19h
         workingHours = {
-            morning: ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
-            afternoon: ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00']
+            morning: generate15MinSlots('08:00', '12:00'),   // 8:00 até 12:00
+            afternoon: generate15MinSlots('13:00', '19:00')  // 13:00 até 19:00
         };
     } else if (dayOfWeek === 6) { // Sábado: 8h às 17h
         workingHours = {
-            morning: ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
-            afternoon: ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00']
+            morning: generate15MinSlots('08:00', '12:00'),   // 8:00 até 12:00
+            afternoon: generate15MinSlots('13:00', '17:00')  // 13:00 até 17:00
         };
     }
 
@@ -3140,6 +3164,18 @@ async function loadPendingAppointments() {
     }
     
     try {
+        // Primeiro, buscar IDs de agendamentos que já são inadimplentes
+        const { data: inadimplentes, error: inadError } = await supabaseClient
+            .from('inadimplentes')
+            .select('agendamento_id');
+        
+        if (inadError) {
+            console.warn('Erro ao buscar inadimplentes:', inadError);
+        }
+        
+        const idsInadimplentes = inadimplentes ? inadimplentes.map(i => i.agendamento_id) : [];
+        
+        // Buscar agendamentos
         const { data: appointments, error } = await supabaseClient
             .from('agendamentos')
             .select(`
@@ -3163,7 +3199,19 @@ async function loadPendingAppointments() {
         const select = document.getElementById('addUnpaidAppointment');
         select.innerHTML = '<option value="">Selecione um agendamento</option>';
         
-        appointments.forEach(appointment => {
+        // Filtrar agendamentos que já são inadimplentes
+        const availableAppointments = appointments.filter(apt => !idsInadimplentes.includes(apt.id));
+        
+        if (availableAppointments.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Nenhum agendamento disponível';
+            option.disabled = true;
+            select.appendChild(option);
+            return;
+        }
+        
+        availableAppointments.forEach(appointment => {
             const option = document.createElement('option');
             option.value = appointment.id;
             const dataFormatada = formatDate(appointment.data_horario.split('T')[0]);
@@ -3304,13 +3352,24 @@ async function addUnpaidClient(event) {
         // Obter dados do agendamento selecionado
         const select = document.getElementById('addUnpaidAppointment');
         const selectedOption = select.options[select.selectedIndex];
+        
+        if (!selectedOption || !selectedOption.dataset.appointment) {
+            showNotification('Dados do agendamento não encontrados.', 'error');
+            return;
+        }
+        
         const appointment = JSON.parse(selectedOption.dataset.appointment);
         
-        clienteNome = appointment.clientes.nome;
-        clienteTelefone = appointment.clientes.telefone;
-        servico = appointment.servicos.nome;
-        dataServico = appointment.data_horario.split('T')[0];
-        valorDevido = parseFloat(appointment.preco || appointment.preco_cobrado || appointment.servicos?.preco_base || 0) || 0;
+        clienteNome = appointment.clientes?.nome || appointment.nome_cliente || '';
+        clienteTelefone = appointment.clientes?.telefone || appointment.telefone || '';
+        servico = appointment.servicos?.nome || appointment.servico || '';
+        dataServico = appointment.data_horario ? appointment.data_horario.split('T')[0] : '';
+        valorDevido = parseFloat(appointment.preco || appointment.servicos?.preco_base || 0) || 0;
+        
+        if (!clienteNome || !clienteTelefone || !servico || !dataServico || valorDevido <= 0) {
+            showNotification('Dados do agendamento incompletos. Use inadimplência independente.', 'warning');
+            return;
+        }
     } else {
         // Inadimplência independente
         clienteNome = document.getElementById('addUnpaidNome').value.trim();
@@ -3338,12 +3397,16 @@ async function addUnpaidClient(event) {
         let clienteId;
         const telefoneNormalizado = normalizePhone(clienteTelefone);
         
-        // Buscar cliente existente
-        const { data: clienteExistente } = await supabaseClient
+        // Buscar cliente existente pelo telefone normalizado
+        const { data: clienteExistente, error: searchError } = await supabaseClient
             .from('clientes')
             .select('id')
-            .eq('telefone', telefoneNormalizado)
+            .eq('telefone_normalizado', telefoneNormalizado)
             .single();
+        
+        if (searchError && searchError.code !== 'PGRST116') {
+            console.error('Erro ao buscar cliente:', searchError);
+        }
         
         if (clienteExistente) {
             clienteId = parseInt(clienteExistente.id);
@@ -3353,7 +3416,8 @@ async function addUnpaidClient(event) {
                 .from('clientes')
                 .insert([{
                     nome: clienteNome,
-                    telefone: telefoneNormalizado,
+                    telefone: clienteTelefone,
+                    telefone_normalizado: telefoneNormalizado,
                     status_cliente: 'ativo'
                 }])
                 .select('id')
@@ -3401,10 +3465,13 @@ async function addUnpaidClient(event) {
             const agendamento = {
                 cliente_id: parseInt(clienteId),
                 servico_id: parseInt(servicoData.id),
+                telefone: telefoneNormalizado,
+                nome_cliente: clienteNome,
+                servico: servico,
                 data_horario: dataHorario.toISOString(),
                 horario_inicio: '12:00',
                 horario_fim: '13:00',
-                preco_cobrado: parseFloat(valorDevido),
+                preco: parseFloat(valorDevido),
                 status: 'concluido',
                 observacoes: observacoes || 'Inadimplente adicionado manualmente'
             };
@@ -3426,7 +3493,11 @@ async function addUnpaidClient(event) {
             agendamento_id: parseInt(agendamentoId),
             cliente_id: parseInt(clienteId),
             telefone: telefoneNormalizado,
+            nome_cliente: clienteNome,
+            servico: servico,
             valor_devido: parseFloat(valorDevido),
+            valor_pago: 0.00,
+            valor_restante: parseFloat(valorDevido),
             data_vencimento: dataServico,
             observacoes_cobranca: observacoes || null
         };
@@ -3548,10 +3619,13 @@ function renderClientsTable(clients) {
         const statusClass = client.status_cliente === 'ativo' ? 'status-active' : 
                            client.status_cliente === 'inativo' ? 'status-inactive' : 'status-blocked';
         
+        // Formatar telefone para exibição padronizada
+        const telefoneFormatado = formatPhoneDisplay(client.telefone);
+        
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${client.nome}</td>
-            <td>${client.telefone}</td>
+            <td>${telefoneFormatado}</td>
             <td><span class="status-badge ${statusClass}">${client.status_cliente || 'ativo'}</span></td>
             <td>${totalAgendamentos}</td>
             <td>${ultimoAgendamentoFormatado}</td>
@@ -3936,23 +4010,31 @@ async function addQuickClient(event) {
         showLoading();
         
         const telefoneNormalizado = normalizePhone(telefone);
+        const telefoneFormatado = formatarTelefone(telefone);
         
-        // Verificar se já existe cliente com este telefone
+        // Verificar se já existe cliente com este telefone (busca pelo normalizado)
         const { data: existingClient } = await supabaseClient
             .from('clientes')
             .select('*')
-            .eq('telefone', telefoneNormalizado)
+            .eq('telefone_normalizado', telefoneNormalizado)
             .single();
         
         if (existingClient) {
             // Cliente já existe, usar o existente
             fillClientFields(existingClient);
             showNotification('Cliente já cadastrado! Dados preenchidos automaticamente.', 'info');
+            
+            // Marcar que o cliente foi selecionado (evitar duplicação)
+            if (currentQuickClientContext === 'add') {
+                selectedAddClientId = existingClient.id;
+            } else if (currentQuickClientContext === 'edit') {
+                selectedClientId = existingClient.id;
+            }
         } else {
-            // Criar novo cliente
+            // Criar novo cliente (salva telefone formatado, o banco normaliza automaticamente)
             const clienteData = {
                 nome: nome,
-                telefone: telefoneNormalizado,
+                telefone: telefoneFormatado,
                 email: email || null,
                 status_cliente: 'ativo'
             };
@@ -3972,6 +4054,13 @@ async function addQuickClient(event) {
             // Atualizar lista de clientes em memória
             if (allClients) {
                 allClients.push(newClient);
+            }
+            
+            // Marcar que o cliente foi selecionado (evitar duplicação)
+            if (currentQuickClientContext === 'add') {
+                selectedAddClientId = newClient.id;
+            } else if (currentQuickClientContext === 'edit') {
+                selectedClientId = newClient.id;
             }
         }
         
@@ -3995,6 +4084,8 @@ function fillClientFields(client) {
             telefoneField = document.getElementById('addTelefone');
             dddField = document.getElementById('addDDD');
             numeroField = document.getElementById('addNumero');
+            // Definir cliente selecionado para evitar duplicação
+            selectedAddClientId = client.id;
             break;
         case 'edit':
             nomeField = document.getElementById('editNome');
@@ -4457,3 +4548,175 @@ if (originalShowSection) {
         setTimeout(initScrollIndicators, 100);
     };
 }
+
+// ========================================
+// FILTRO DE AGENDAMENTOS NO MODAL INADIMPLENTE
+// ========================================
+let allAppointmentsData = [];
+let originalAppointmentsData = []; // Cópia permanente dos dados originais
+
+function clearAppointmentFilters() {
+    document.getElementById('filterByClient').value = '';
+    document.getElementById('filterByService').value = '';
+    document.getElementById('filterByDate').value = '';
+    
+    // Dispara o evento de mudança para atualizar a lista
+    const event = new Event('change');
+    document.getElementById('filterByClient').dispatchEvent(event);
+}
+
+function initAppointmentFilter() {
+    const filterClient = document.getElementById('filterByClient');
+    const filterService = document.getElementById('filterByService');
+    const filterDate = document.getElementById('filterByDate');
+    const select = document.getElementById('addUnpaidAppointment');
+    
+    if (!filterClient || !filterService || !filterDate || !select) return;
+
+    let isFiltering = false;
+    let isObserving = false;
+
+    // Popula filtros com valores únicos dos agendamentos ORIGINAIS
+    function populateFilters() {
+        if (originalAppointmentsData.length === 0) return;
+        
+        // Salva valores selecionados
+        const currentClient = filterClient.value;
+        const currentService = filterService.value;
+        
+        // Clientes únicos - sempre usa dados ORIGINAIS
+        const clients = [...new Set(originalAppointmentsData.map(apt => apt.clientName).filter(Boolean))].sort();
+        filterClient.innerHTML = '<option value="">Todos os Clientes</option>';
+        clients.forEach(client => {
+            const opt = document.createElement('option');
+            opt.value = client;
+            opt.textContent = client;
+            if (client === currentClient) opt.selected = true;
+            filterClient.appendChild(opt);
+        });
+        
+        // Serviços únicos - sempre usa dados ORIGINAIS
+        const services = [...new Set(originalAppointmentsData.map(apt => apt.serviceName).filter(Boolean))].sort();
+        filterService.innerHTML = '<option value="">Todos os Serviços</option>';
+        services.forEach(service => {
+            const opt = document.createElement('option');
+            opt.value = service;
+            opt.textContent = service;
+            if (service === currentService) opt.selected = true;
+            filterService.appendChild(opt);
+        });
+    }
+
+    // Filtra agendamentos baseado nos critérios selecionados
+    function filterAppointments() {
+        if (isFiltering || originalAppointmentsData.length === 0) return;
+        
+        isFiltering = true;
+        
+        const selectedClient = filterClient.value.trim();
+        const selectedService = filterService.value.trim();
+        const selectedDate = filterDate.value.trim();
+        
+        // Sempre filtra a partir dos dados ORIGINAIS
+        let filtered = originalAppointmentsData;
+        
+        // Aplica filtro de cliente
+        if (selectedClient) {
+            filtered = filtered.filter(apt => apt.clientName === selectedClient);
+        }
+        
+        // Aplica filtro de serviço
+        if (selectedService) {
+            filtered = filtered.filter(apt => apt.serviceName === selectedService);
+        }
+        
+        // Aplica filtro de data
+        if (selectedDate) {
+            filtered = filtered.filter(apt => apt.date === selectedDate);
+        }
+        
+        // Atualiza o select com os resultados
+        select.innerHTML = '';
+        
+        if (filtered.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Nenhum agendamento encontrado';
+            opt.disabled = true;
+            select.appendChild(opt);
+        } else {
+            filtered.forEach(apt => {
+                const opt = document.createElement('option');
+                opt.value = apt.value;
+                opt.textContent = apt.text;
+                if (apt.dataset) opt.dataset.appointment = apt.dataset;
+                select.appendChild(opt);
+            });
+        }
+        
+        isFiltering = false;
+    }
+
+    // Eventos de mudança nos filtros
+    filterClient.addEventListener('change', filterAppointments);
+    filterService.addEventListener('change', filterAppointments);
+    filterDate.addEventListener('change', filterAppointments);
+
+    // Observer para detectar quando o select é populado dinamicamente (primeira vez)
+    const observer = new MutationObserver((mutations) => {
+        if (!isFiltering && !isObserving) {
+            isObserving = true;
+            
+            // Extrai dados dos agendamentos apenas se os dados originais estão vazios
+            const options = Array.from(select.options).filter(opt => opt.value && opt.value !== '');
+            
+            if (options.length > 0 && originalAppointmentsData.length === 0) {
+                originalAppointmentsData = options.map(opt => {
+                    const text = opt.textContent || '';
+                    // Formato: "Cliente - Serviço - DD/MM/YYYY HH:MM-HH:MM (status)"
+                    const parts = text.split(' - ');
+                    const clientName = parts[0] ? parts[0].trim() : '';
+                    const serviceName = parts[1] ? parts[1].trim() : '';
+                    const dateTimePart = parts[2] || '';
+                    const dateStr = dateTimePart.split(' ')[0] || '';
+                    
+                    // Converte DD/MM/YYYY para YYYY-MM-DD
+                    let date = '';
+                    if (dateStr && dateStr.includes('/')) {
+                        const dateParts = dateStr.split('/');
+                        if (dateParts.length === 3) {
+                            const [day, month, year] = dateParts;
+                            date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                        }
+                    }
+                    
+                    return {
+                        value: opt.value,
+                        text: text,
+                        dataset: opt.dataset.appointment || '',
+                        clientName,
+                        serviceName,
+                        date
+                    };
+                });
+                
+                allAppointmentsData = [...originalAppointmentsData]; // Cópia
+                populateFilters();
+            }
+            
+            setTimeout(() => { isObserving = false; }, 100);
+        }
+    });
+
+    observer.observe(select, { childList: true, subtree: false });
+}
+
+// Inicializa o filtro quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAppointmentFilter);
+} else {
+    initAppointmentFilter();
+}
+
+// Exporta função para uso global
+window.clearAppointmentFilters = clearAppointmentFilters;

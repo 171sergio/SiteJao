@@ -205,7 +205,7 @@ AFTER INSERT OR UPDATE ON agendamentos FOR EACH ROW EXECUTE FUNCTION atualizar_c
 CREATE OR REPLACE FUNCTION atualizar_dias_atraso()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.dias_atraso = GREATEST(0, EXTRACT(DAY FROM (CURRENT_DATE - NEW.data_vencimento))::INTEGER);
+    NEW.dias_atraso = GREATEST(0, (CURRENT_DATE - NEW.data_vencimento));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -294,6 +294,111 @@ INSERT INTO config_barbearia (categoria, chave, valor, tipo_valor, descricao) VA
 ON CONFLICT (categoria, chave) DO NOTHING;
 
 -- =====================================================
+-- 6. NORMALIZAÇÃO DE TELEFONE + PREVENÇÃO DE DUPLICATAS
+-- Independente da formatação (com/sem espaços, +55, etc.)
+-- =====================================================
+
+-- 6.1) Função utilitária para normalizar telefone (remove tudo que não for dígito)
+CREATE OR REPLACE FUNCTION fn_normaliza_telefone(p_tel TEXT)
+RETURNS TEXT AS $$
+BEGIN
+    IF p_tel IS NULL THEN
+        RETURN '';
+    END IF;
+    RETURN regexp_replace(p_tel, '\D', '', 'g');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- 6.2) Adicionar coluna de telefone normalizado se não existir
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='clientes' AND column_name='telefone_normalizado'
+    ) THEN
+        ALTER TABLE clientes ADD COLUMN telefone_normalizado VARCHAR(30);
+    END IF;
+END$$;
+
+-- 6.3) Popular telefone_normalizado para registros existentes
+UPDATE clientes
+SET telefone_normalizado = fn_normaliza_telefone(telefone)
+WHERE telefone_normalizado IS NULL OR telefone_normalizado = '';
+
+-- 6.4) Criar tabela temporária com o cliente a manter por telefone_normalizado
+CREATE TEMP TABLE clientes_unicos_normalizados AS
+SELECT DISTINCT ON (telefone_normalizado) id, telefone_normalizado
+FROM clientes
+WHERE telefone_normalizado <> ''
+ORDER BY telefone_normalizado, criado_em ASC NULLS LAST, id ASC;
+
+-- 6.5) Identificar duplicatas
+CREATE TEMP TABLE clientes_duplicados_normalizados AS
+SELECT id FROM clientes
+WHERE telefone_normalizado <> '' AND id NOT IN (SELECT id FROM clientes_unicos_normalizados);
+
+-- 6.6) Atualizar referências em agendamentos para apontar ao cliente único
+UPDATE agendamentos a
+SET cliente_id = cu.id
+FROM clientes c
+JOIN clientes_unicos_normalizados cu ON c.telefone_normalizado = cu.telefone_normalizado
+WHERE a.cliente_id = c.id
+  AND c.id IN (SELECT id FROM clientes_duplicados_normalizados);
+
+-- 6.7) Deletar clientes duplicados
+DELETE FROM clientes WHERE id IN (SELECT id FROM clientes_duplicados_normalizados);
+
+-- 6.8) Garantir que todos os clientes tenham telefone_normalizado preenchido
+UPDATE clientes
+SET telefone_normalizado = fn_normaliza_telefone(telefone)
+WHERE telefone_normalizado IS NULL OR telefone_normalizado = '';
+
+-- 6.9) Criar trigger para manter telefone_normalizado atualizado automaticamente
+CREATE OR REPLACE FUNCTION trg_normaliza_telefone_clientes()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.telefone_normalizado := fn_normaliza_telefone(NEW.telefone);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_normaliza_telefone_clientes ON clientes;
+CREATE TRIGGER trigger_normaliza_telefone_clientes
+BEFORE INSERT OR UPDATE ON clientes
+FOR EACH ROW EXECUTE FUNCTION trg_normaliza_telefone_clientes();
+
+-- 6.10) Criar índice único parcial para prevenir duplicatas futuras
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'uniq_clientes_telefone_normalizado_partial'
+    ) THEN
+        CREATE UNIQUE INDEX uniq_clientes_telefone_normalizado_partial
+        ON clientes(telefone_normalizado)
+        WHERE telefone_normalizado <> '';
+    END IF;
+END$$;
+
+-- 6.11) Criar índice para busca rápida
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'idx_clientes_telefone_normalizado'
+    ) THEN
+        CREATE INDEX idx_clientes_telefone_normalizado ON clientes(telefone_normalizado);
+    END IF;
+END$$;
+
+-- 6.12) Limpeza de tabelas temporárias
+DROP TABLE IF EXISTS clientes_unicos_normalizados;
+DROP TABLE IF EXISTS clientes_duplicados_normalizados;
+
+-- =====================================================
 -- ✅ BANCO CRIADO COM SUCESSO!
 -- Compatível com: Site + Bot WhatsApp (n8n)
+-- Telefones normalizados e duplicatas prevenidas!
 -- =====================================================

@@ -421,11 +421,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="addHorarioInicio">Horário de Início:</label>
-                            <input type="time" id="addHorarioInicio" required>
+                            <input type="time" id="addHorarioInicio" step="900" required>
                         </div>
                         <div class="form-group">
                             <label for="addHorarioFim">Horário de Fim:</label>
-                            <input type="time" id="addHorarioFim" required>
+                            <input type="time" id="addHorarioFim" step="900" required>
                         </div>
                     </div>
                     
@@ -508,11 +508,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Horário de Início:</label>
-                            <input type="time" id="editHorarioInicio" required>
+                            <input type="time" id="editHorarioInicio" step="900" required>
                         </div>
                         <div class="form-group">
                             <label>Horário de Fim:</label>
-                            <input type="time" id="editHorarioFim" required>
+                            <input type="time" id="editHorarioFim" step="900" required>
                         </div>
                     </div>
                     
@@ -568,8 +568,21 @@
                     </div>
                     
                     <div id="appointmentSelection" class="form-group" style="display: none;">
+                        <label>Filtrar Agendamentos:</label>
+                        <div class="appointment-filters">
+                            <select id="filterByClient" class="filter-select">
+                                <option value="" selected>Todos os Clientes</option>
+                            </select>
+                            <select id="filterByService" class="filter-select">
+                                <option value="" selected>Todos os Serviços</option>
+                            </select>
+                            <input type="date" id="filterByDate" class="filter-date" placeholder="Filtrar por data">
+                            <button type="button" id="clearFiltersBtn" class="btn-clear-filters" onclick="clearAppointmentFilters()" title="Limpar Filtros">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                         <label>Agendamento:</label>
-                        <select id="addUnpaidAppointment" onchange="fillFromAppointment()">
+                        <select id="addUnpaidAppointment" onchange="fillFromAppointment()" size="5">
                             <option value="">Selecione um agendamento</option>
                         </select>
                     </div>
