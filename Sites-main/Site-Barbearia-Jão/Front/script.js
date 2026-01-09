@@ -3,6 +3,104 @@ let supabaseClient = null;
 let isSupabaseConfigured = false;
 
 // =====================================================
+// REALTIME SUBSCRIPTION - Atualização automática da UI
+// =====================================================
+function setupRealtimeSubscription() {
+    if (!supabaseClient) return;
+
+    supabaseClient
+        .channel('db-changes')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'agendamentos' },
+            (payload) => {
+                console.log('Realtime: mudança detectada', payload);
+                // Quando o bot ou alguém marcar, atualiza a UI instantaneamente
+                loadTodayAppointments();
+                loadOverviewData();
+                if (currentSection === 'schedule') loadScheduleGrid();
+                if (currentSection === 'appointments') loadAppointments();
+                showNotification('Agenda atualizada em tempo real!', 'info');
+            }
+        )
+        .subscribe((status) => {
+            console.log('Realtime subscription status:', status);
+        });
+}
+
+// =====================================================
+// AGENDAMENTO SEGURO via RPC (Atomicidade no Banco)
+// =====================================================
+async function handleSecureBooking(params) {
+    if (!supabaseClient) {
+        throw new Error('Supabase não configurado');
+    }
+
+    const { data, error } = await supabaseClient.rpc('realizar_agendamento_seguro', {
+        p_cliente_id: params.clienteId,
+        p_servico_id: params.servicoId,
+        p_telefone: params.telefone,
+        p_nome_cliente: params.nome,
+        p_servico_nome: params.servico,
+        p_data_horario: params.dataISO,
+        p_horario_inicio: params.inicio,
+        p_horario_fim: params.fim,
+        p_preco: params.preco
+    });
+
+    if (error) {
+        console.error('Erro RPC:', error);
+        throw new Error(error.message || 'Erro ao processar agendamento no banco.');
+    }
+
+    if (!data || !data.success) {
+        throw new Error(data?.error || 'Horário indisponível. Por favor, escolha outro.');
+    }
+
+    return data;
+}
+
+// =====================================================
+// VALIDAÇÃO DE DADOS (Zod-like básico)
+// =====================================================
+function validateAppointmentData(data) {
+    const errors = [];
+    
+    if (!data.nome || data.nome.trim().length < 2) {
+        errors.push('Nome do cliente deve ter pelo menos 2 caracteres.');
+    }
+    
+    if (!data.telefone || data.telefone.replace(/\D/g, '').length < 10) {
+        errors.push('Telefone inválido.');
+    }
+    
+    if (!data.servico) {
+        errors.push('Selecione um serviço.');
+    }
+    
+    if (!data.data) {
+        errors.push('Selecione uma data.');
+    }
+    
+    if (!data.horarioInicio || !data.horarioFim) {
+        errors.push('Preencha os horários de início e fim.');
+    }
+    
+    if (data.horarioInicio && data.horarioFim && data.horarioFim <= data.horarioInicio) {
+        errors.push('Horário de fim deve ser posterior ao de início.');
+    }
+    
+    if (!data.preco || data.preco <= 0) {
+        errors.push('Informe o preço do serviço.');
+    }
+    
+    return {
+        valid: errors.length === 0,
+        errors
+    };
+}
+
+// =====================================================
 // FUNÇÕES DE TELEFONE SEGMENTADO
 // =====================================================
 
@@ -456,7 +554,11 @@ function clearCache(key = null) {
     }
 }
 
-// Função para verificar conflitos no Supabase
+// =====================================================
+// @DEPRECATED - Verificação manual de conflitos
+// A atomicidade agora é garantida pela RPC `realizar_agendamento_seguro`
+// Esta função é mantida apenas para compatibilidade com saveAppointment (edição)
+// =====================================================
 async function checkTimeConflictSupabase(date, startTime, endTime, excludeId = null) {
     if (!supabaseClient) return { conflict: false };
     
@@ -683,11 +785,11 @@ function generate15MinSlots(horaInicio, horaFim) {
     return slots;
 }
 
-// Credenciais de login
-const VALID_CREDENTIALS = {
-    username: 'jaonegro',
-    password: 'crioulo'
-};
+// =====================================================
+// AUTENTICAÇÃO via Supabase Auth (SEGURA)
+// =====================================================
+// REMOVIDO: Credenciais hardcoded (FALHA DE SEGURANÇA)
+// Agora usa supabase.auth.signInWithPassword()
 
 // Elementos DOM
 const loginScreen = document.getElementById('loginScreen');
@@ -703,6 +805,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAllClients();
     setupAllClientAutocomplete();
     inicializarCamposTelefone(); // Inicializar campos de telefone segmentados
+    
+    // Configurar Realtime para atualizações automáticas
+    if (isSupabaseConfigured) {
+        setupRealtimeSubscription();
+    }
     
     // Definir data de hoje por padrão
     const today = new Date().toISOString().split('T')[0];
@@ -722,19 +829,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
 });
 
-function initializeApp() {
-    // Verificar se já está logado
+async function initializeApp() {
+    // Verificar sessão do Supabase Auth primeiro
+    if (supabaseClient) {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user) {
+                currentUser = { 
+                    id: session.user.id,
+                    email: session.user.email,
+                    username: session.user.user_metadata?.nome || 'Usuário',
+                    role: session.user.user_metadata?.role || 'barbeiro'
+                };
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                showDashboard();
+                setDefaultDates();
+                loadDashboardData();
+                
+                if (isSupabaseConfigured) {
+                    initializeAppointmentStatusChecker();
+                }
+                return;
+            }
+        } catch (err) {
+            console.warn('Erro ao verificar sessão:', err);
+        }
+    }
+    
+    // Fallback: verificar localStorage (compatibilidade)
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         showDashboard();
-        
-        // Definir datas padrão
         setDefaultDates();
-        
         loadDashboardData();
         
-        // Inicializar sistema de verificação automática de agendamentos
         if (isSupabaseConfigured) {
             initializeAppointmentStatusChecker();
         }
@@ -808,24 +937,51 @@ function setupEventListeners() {
     document.getElementById('reportEndDate').addEventListener('change', updateReportData);
 }
 
-// Autenticação
+// Autenticação via Supabase Auth (SEGURA)
 async function handleLogin(e) {
     e.preventDefault();
     
-    const username = document.getElementById('username').value;
+    const email = document.getElementById('username').value; // Campo agora é email
     const password = document.getElementById('password').value;
     
-    if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
-        currentUser = { username: 'Jão', role: 'barbeiro' };
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        showDashboard();
-        await loadDashboardData();
-    } else {
-        showError('Usuário ou senha incorretos!');
+    if (!supabaseClient) {
+        showError('Sistema não configurado. Verifique config.js');
+        return;
+    }
+    
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+        
+        if (error) {
+            console.error('Erro de autenticação:', error);
+            showError('Email ou senha incorretos!');
+            return;
+        }
+        
+        if (data.user) {
+            currentUser = { 
+                id: data.user.id,
+                email: data.user.email,
+                username: data.user.user_metadata?.nome || 'Usuário',
+                role: data.user.user_metadata?.role || 'barbeiro'
+            };
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            showDashboard();
+            await loadDashboardData();
+        }
+    } catch (err) {
+        console.error('Erro no login:', err);
+        showError('Erro ao fazer login. Tente novamente.');
     }
 }
 
-function handleLogout() {
+async function handleLogout() {
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+    }
     currentUser = null;
     localStorage.removeItem('currentUser');
     showLogin();
@@ -842,7 +998,7 @@ function showLogin() {
 function showDashboard() {
     loginScreen.style.display = 'none';
     dashboard.style.display = 'grid';
-    userNameSpan.textContent = currentUser.username;
+    userNameSpan.textContent = currentUser.username || currentUser.email;
     showSection('overview');
 }
 
@@ -2569,7 +2725,7 @@ function updateUnpaidServicePrice() {
     }
 }
 
-// Função para adicionar novo agendamento
+// Função para adicionar novo agendamento (USA RPC SEGURA)
 async function addNewAppointment(event) {
     event.preventDefault();
     
@@ -2591,18 +2747,27 @@ async function addNewAppointment(event) {
         const horarioInicio = document.getElementById('addHorarioInicio').value;
         const horarioFim = document.getElementById('addHorarioFim').value;
         const preco = parseFloat(document.getElementById('addPreco').value) || 0;
-        const status = document.getElementById('addStatus').value;
         const observacoes = document.getElementById('addObservacoes').value.trim();
+        
+        // Validação centralizada
+        const validation = validateAppointmentData({
+            nome: clienteNome,
+            telefone: clienteTelefone,
+            servico,
+            data,
+            horarioInicio,
+            horarioFim,
+            preco
+        });
+        
+        if (!validation.valid) {
+            showNotification(validation.errors[0], 'error');
+            return;
+        }
         
         // Validação do telefone (DDD + Número)
         const ddd = document.getElementById('addDDD')?.value.trim() || '';
         const numero = document.getElementById('addNumero')?.value.replace(/\D/g, '') || '';
-        
-        if (!clienteNome) {
-            showNotification('Por favor, preencha o nome do cliente.', 'error');
-            document.getElementById('addNome').focus();
-            return;
-        }
         
         if (!ddd || ddd.length !== 2) {
             showNotification('Por favor, preencha o DDD (2 dígitos).', 'error');
@@ -2616,54 +2781,10 @@ async function addNewAppointment(event) {
             return;
         }
         
-        if (!servico) {
-            showNotification('Por favor, selecione um serviço.', 'error');
-            document.getElementById('addServico').focus();
-            return;
-        }
-        
-        if (!data) {
-            showNotification('Por favor, selecione uma data.', 'error');
-            document.getElementById('addData').focus();
-            return;
-        }
-        
-        if (!horarioInicio) {
-            showNotification('Por favor, selecione o horário de início.', 'error');
-            document.getElementById('addHorarioInicio').focus();
-            return;
-        }
-        
-        if (!horarioFim) {
-            showNotification('Por favor, selecione o horário de fim.', 'error');
-            document.getElementById('addHorarioFim').focus();
-            return;
-        }
-        
-        if (!preco || preco <= 0) {
-            showNotification('Por favor, informe o preço do serviço.', 'error');
-            document.getElementById('addPreco').focus();
-            return;
-        }
-        
-        // Validar se horário de fim é posterior ao de início
-        if (horarioFim <= horarioInicio) {
-            showNotification('O horário de fim deve ser posterior ao horário de início.', 'error');
-            return;
-        }
-        
-        // Verificar conflitos de horário no Supabase
-        const conflictCheck = await checkTimeConflictSupabase(data, horarioInicio, horarioFim);
-        if (conflictCheck.conflict) {
-            showNotification(`Este horário conflita com ${conflictCheck.conflictWith.nome_cliente} (${conflictCheck.conflictWith.horario_inicio} - ${conflictCheck.conflictWith.horario_fim}).`, 'error');
-            return;
-        }
-        
         let cliente;
         
         // Se um cliente foi selecionado pelo autocomplete, usar ele diretamente
         if (selectedAddClientId) {
-            // Buscar cliente pelo ID
             const { data: existingClient, error: clientError } = await supabaseClient
                 .from('clientes')
                 .select('*')
@@ -2676,9 +2797,9 @@ async function addNewAppointment(event) {
                 cliente = existingClient;
             }
         } else {
-            // Buscar ou criar cliente
             cliente = await findOrCreateClient(clienteTelefone, clienteNome);
         }
+        
         if (!cliente) {
             throw new Error('Erro ao processar dados do cliente');
         }
@@ -2692,29 +2813,20 @@ async function addNewAppointment(event) {
         // Combinar data e horário em um timestamp
         const dataHorario = new Date(`${data}T${horarioInicio}:00`);
         
-        const newAppointment = {
-            cliente_id: cliente.id,
-            servico_id: servicoData.id,
-            // IMPORTANTES: Campos diretos para compatibilidade com bot
-            telefone: clienteTelefone,  // Já formatado
-            nome_cliente: clienteNome,
+        // USAR RPC SEGURA (Atomicidade no banco - previne conflitos)
+        const result = await handleSecureBooking({
+            clienteId: cliente.id,
+            servicoId: servicoData.id,
+            telefone: clienteTelefone,
+            nome: clienteNome,
             servico: servico,
-            // Campos de data/hora
-            data_horario: dataHorario.toISOString(),
-            horario_inicio: horarioInicio,
-            horario_fim: horarioFim,
-            // Campos de serviço
-            preco: preco,
-            status: status,
-            observacoes: observacoes || null
-        };
+            dataISO: dataHorario.toISOString(),
+            inicio: horarioInicio,
+            fim: horarioFim,
+            preco: preco
+        });
         
-        const { data: insertedData, error } = await supabaseClient
-            .from('agendamentos')
-            .insert([newAppointment])
-            .select();
-        
-        if (error) throw error;
+        console.log('Agendamento criado via RPC:', result);
         
         // Fechar modal e recarregar dados
         closeAddModal();
@@ -2727,7 +2839,13 @@ async function addNewAppointment(event) {
         
     } catch (error) {
         console.error('Erro ao adicionar agendamento:', error);
-        showNotification('Erro ao criar agendamento: ' + error.message, 'error');
+        
+        // Mensagem amigável para conflito de horário
+        if (error.message.includes('CONFLITO') || error.message.includes('Horário indisponível')) {
+            showNotification('Putz, esse horário acabou de ser ocupado. Por favor, escolha outro!', 'warning');
+        } else {
+            showNotification('Erro ao criar agendamento: ' + error.message, 'error');
+        }
     }
 }
 function handleTimeSlotClick(time, date, isOccupied) {

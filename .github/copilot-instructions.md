@@ -20,6 +20,9 @@ Quick orientation (what matters most):
   - The frontend must use the Supabase *anon* key only. Never expose `service_role` in frontend code or committed files.
   - `config.js` is generated at build time from `config.template.js` by `build-config.js`. Do not edit `config.js` manually — edit the template.
   - When adding or editing prompts for the assistant, prefer injecting DB context (JSON) from n8n rather than hardcoding prices/hours into the prompt.
+  - **AUTENTICAÇÃO**: Usar Supabase Auth (`supabase.auth.signInWithPassword()`) — NUNCA credenciais hardcoded.
+  - **AGENDAMENTOS**: Usar a função RPC `realizar_agendamento_seguro` para garantir atomicidade e prevenir conflitos.
+  - **REALTIME**: A função `setupRealtimeSubscription()` atualiza a UI automaticamente quando há mudanças na tabela `agendamentos`.
 
 - Data flow patterns to follow when coding agents:
   - Query `servicos` + `config_barbearia` from Supabase and pass them as a small JSON context object to any AI prompt. e.g. {
@@ -27,6 +30,7 @@ Quick orientation (what matters most):
     "config": {"abertura":"09:00","fechamento":"18:00"}
   }
   - Validate availability server-side (or in n8n) before confirming reservations — the frontend or AI may suggest times but the DB is authoritative.
+  - Use `handleSecureBooking()` for new appointments — it calls the RPC and handles conflicts atomically.
 
 - Files to inspect when making changes or triaging bugs:
   - `Sites-main/Site-Barbearia-Jão/Front/script.js` — frontend logic that fetches and displays services.
@@ -41,6 +45,8 @@ Quick orientation (what matters most):
 - What NOT to change / watch out for:
   - Do not commit `config.js` or any secrets. There is a template and build step specifically to avoid this.
   - Avoid changing the structure of the exported n8n JSON unless you understand node IDs — small edits may break imports.
+  - NUNCA adicionar credenciais hardcoded no código (ex: `VALID_CREDENTIALS`).
+  - Usar `validateAppointmentData()` antes de chamar RPC para garantir dados válidos.
 
 - If something is missing:
   - Ask for the Supabase project URL and whether seeds were already applied.
