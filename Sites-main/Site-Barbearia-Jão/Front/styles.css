@@ -748,6 +748,17 @@ body {
     transform: translateY(-2px);
 }
 
+.action-btn.btn-contact {
+    background: rgba(37, 211, 102, 0.2);
+    color: #25D366;
+    border: 1px solid rgba(37, 211, 102, 0.3);
+}
+
+.action-btn.btn-contact:hover {
+    background: rgba(37, 211, 102, 0.4);
+    transform: translateY(-2px);
+}
+
 /* Agendamentos de Hoje */
 .today-schedule {
     background: rgba(44, 44, 44, 0.8);

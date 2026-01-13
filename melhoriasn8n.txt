@@ -1,0 +1,72 @@
+1. Simplificação do Fluxo de Agendamento (Refatoração Crítica)
+Atualmente, seu fluxo provavelmente faz um "Select" para ver se o horário está vago e depois um "Insert". Isso gera o erro de agendamento duplo.
+
+Remover nós de consulta prévia: Delete todos os nós que consultam a tabela de agendamentos para verificar disponibilidade.
+
+Substituir Nó de "Insert" por "RPC": Em vez de usar o nó padrão de "Insert" do Supabase, você usará um nó de HTTP Request ou o nó Supabase configurado para Invoke Function.
+
+Endpoint: https://[SEU_PROJETO].supabase.co/rest/v1/rpc/realizar_agendamento_seguro
+
+Método: POST
+
+Body (JSON): Deve enviar exatamente os parâmetros esperados pela função SQL que criamos:
+
+JSON
+
+{
+  "p_cliente_id": {{ $node["Identificar_Cliente"].json["id"] }},
+  "p_data_horario": "{{ $node["Extrair_Data"].json["timestamp"] }}",
+  "p_horario_inicio": "{{ $node["Extrair_Data"].json["inicio"] }}",
+  "p_horario_fim": "{{ $node["Extrair_Data"].json["fim"] }}",
+  "p_telefone": "{{ $node["Webhook"].json["from"] }}",
+  "p_nome_cliente": "{{ $node["Extrair_Nome"].json["nome"] }}",
+  "p_servico_nome": "{{ $node["Extrair_Servico"].json["servico"] }}",
+  "p_preco": {{ $node["Extrair_Servico"].json["preco"] }}
+}
+2. Tratamento de Erros e Concorrência
+O n8n agora deve estar preparado para quando o banco de dados disser "Não".
+
+Adicionar nó de IF após a RPC:
+
+Condição: Se success (da resposta do Supabase) for igual a true.
+
+Caminho True: Segue para o nó de "Confirmação de Agendamento" no WhatsApp.
+
+Caminho False: Segue para um nó de resposta de erro: "Putz, esse horário acabou de ser preenchido por outra pessoa! Pode escolher outro?".
+
+3. Consulta Inteligente de Disponibilidade
+Pare de tentar calcular horários livres dentro do n8n com loops complexos.
+
+Novo Nó de Consulta: Quando o cliente perguntar "Quais horários tem?", o n8n deve chamar a função RPC listar_horarios_livres.
+
+Vantagem: O banco já devolve a lista pronta, filtrando feriados e horários já ocupados. O n8n apenas formata o texto para o cliente.
+
+4. Desacoplamento de Notificações (Webhook do Banco)
+Em vez de o bot do WhatsApp enviar a confirmação no mesmo fluxo do agendamento, o ideal é criar um workflow separado no n8n.
+
+Gatilho (Trigger): Use o nó Webhook do n8n como destino de um Database Webhook do Supabase.
+
+Ação: Sempre que um novo registro entrar na tabela agendamentos (seja via site ou bot), este fluxo é disparado para enviar o comprovante no WhatsApp do cliente.
+
+Por que fazer isso? Se o barbeiro marcar um horário manualmente no site, o cliente recebe a confirmação no WhatsApp automaticamente, sem que você precise programar nada no código do site.
+
+5. Padronização de Dados (Normalização)
+O n8n deve garantir que os dados cheguem limpos ao banco para evitar falhas nos índices UNIQUE.
+
+Nó de Função (JavaScript): Antes de enviar o telefone para o banco, use um pequeno script para limpar caracteres:
+
+JavaScript
+
+// No n8n (Node Function)
+const tel = items[0].json.telefone;
+items[0].json.telefone_limpo = tel.replace(/\D/g, ''); 
+return items;
+Garantia: Isso assegura que o índice de telefone no Supabase (telefone_normalizado) funcione sempre, evitando clientes duplicados.
+
+Resumo do que você ganha com essas mudanças no n8n:
+
+Velocidade: O bot responde mais rápido porque não faz cálculos.
+
+Segurança: É impossível o bot confirmar um horário que já foi pego no site.
+
+Manutenibilidade: Se você mudar o horário de funcionamento da barbearia, só mexe no banco; o n8n se ajusta sozinho.

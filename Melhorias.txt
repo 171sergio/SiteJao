@@ -1,216 +1,91 @@
-ESPECIFICAÇÃO TÉCNICA DE REFATORAÇÃO: SITE JAO
-Objetivo: Migrar lógica de negócio do n8n para o PostgreSQL (Atomicidade), implementar atualizações em tempo real (Reatividade) e garantir integridade de dados (Prevenção de agendamentos duplos).
+1. Camada de Banco de Dados (SQL no Supabase)
+O banco precisa ser o "cérebro" da barbearia. Falta a lógica de disponibilidade inteligente que considere os horários de funcionamento da tabela config_barbearia.
 
-1. BANCO DE DADOS (Executar manualmente no Supabase SQL Editor)
-Estas alterações devem ser aplicadas primeiro para garantir que o banco rejeite qualquer erro de lógica vindo do Bot ou do Dashboard.
-
-SQL
-
--- =====================================================
--- MELHORIAS DE INTEGRIDADE E ATOMICIDADE
--- =====================================================
-
--- 1. Prevenir agendamentos duplos (Trava no nível de hardware)
--- Garante que não existam dois agendamentos no mesmo timestamp
-ALTER TABLE agendamentos 
-ADD CONSTRAINT unique_appointment_slot UNIQUE (data_horario);
-
--- 2. Índice para performance do Dashboard
-CREATE INDEX IF NOT EXISTS idx_agendamentos_prod 
-ON agendamentos (status, data_horario DESC);
-
--- 3. Função RPC (Stored Procedure) para Agendamento Seguro
--- Esta função deve ser chamada tanto pelo Site quanto pelo n8n
-CREATE OR REPLACE FUNCTION realizar_agendamento_seguro(
-    p_cliente_id INT,
-    p_servico_id INT,
-    p_telefone TEXT,
-    p_nome_cliente TEXT,
-    p_servico_nome TEXT,
-    p_data_horario TIMESTAMP,
-    p_horario_inicio TIME,
-    p_horario_fim TIME,
-    p_preco DECIMAL
-) RETURNS JSON AS $$
-DECLARE
-    v_agendamento_id INT;
-BEGIN
-    -- Tentativa de inserção atômica
-    INSERT INTO agendamentos (
-        cliente_id, servico_id, telefone, nome_cliente, 
-        servico, data_horario, horario_inicio, horario_fim, preco, status
-    ) VALUES (
-        p_cliente_id, p_servico_id, p_telefone, p_nome_cliente, 
-        p_servico_nome, p_data_horario, p_horario_inicio, p_horario_fim, p_preco, 'agendado'
-    ) RETURNING id INTO v_agendamento_id;
-
-    RETURN json_build_object('success', true, 'id', v_agendamento_id);
-
-EXCEPTION WHEN unique_violation THEN
-    -- Erro disparado se o horário já estiver ocupado
-    RETURN json_build_object('success', false, 'error', 'CONFLITO: Este horário já foi preenchido.');
-WHEN OTHERS THEN
-    RETURN json_build_object('success', false, 'error', SQLERRM);
-END;
-$$ LANGUAGE plpgsql;
-
--- 4. Habilitar Segurança (RLS)
-ALTER TABLE agendamentos ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Permitir Acesso Anon" ON agendamentos FOR ALL USING (true) WITH CHECK (true);
-2. FRONTEND / VS CODE (Instruções para a IA do VS Code)
-Passe este trecho para a sua IA do VS Code para refatorar o arquivo script.js.
-
-Contexto para a IA: "Refatore o script.js seguindo estas diretrizes:
-
-Remova a função checkTimeConflictSupabase e pare de fazer verificações manuais de conflito antes de salvar.
-
-Altere a função addNewAppointment e saveAppointment para usarem a função RPC realizar_agendamento_seguro via supabaseClient.rpc().
-
-Implemente a função de Realtime para atualizar a agenda automaticamente sem F5."
-
-Código a ser implementado pela IA:
-
-JavaScript
-
-// A. Implementar Realtime Subscription (Adicionar ao inicializador)
-function setupRealtimeSubscription() {
-    if (!supabaseClient) return;
-
-    supabaseClient
-        .channel('db-changes')
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'agendamentos' },
-            (payload) => {
-                // Quando o bot ou alguém marcar, atualiza a UI instantaneamente
-                loadTodayAppointments();
-                loadOverviewData();
-                if (currentSection === 'schedule') loadScheduleGrid();
-                showNotification('Agenda atualizada em tempo real!', 'info');
-            }
-        )
-        .subscribe();
-}
-
-// B. Refatoração da Chamada de Agendamento (addNewAppointment / saveAppointment)
-// Substituir a lógica de insert direto por:
-async function handleSecureBooking(params) {
-    const { data, error } = await supabaseClient.rpc('realizar_agendamento_seguro', {
-        p_cliente_id: params.clienteId,
-        p_servico_id: params.servicoId,
-        p_telefone: params.telefone,
-        p_nome_cliente: params.nome,
-        p_servico_nome: params.servico,
-        p_data_horario: params.dataISO,
-        p_horario_inicio: params.inicio,
-        p_horario_fim: params.fim,
-        p_preco: params.preco
-    });
-
-    if (error || !data.success) {
-        throw new Error(data?.error || 'Erro ao processar agendamento no banco.');
-    }
-    return data;
-}
-3. FLUXO n8n (Instruções para alteração manual)
-Alterações necessárias no fluxo Bot-BarbeariaJao.json:
-
-Simplificação: Delete os nós de "Check" ou "Select" que tentam validar se o horário está livre.
-
-Ação Única: Substitua o nó de Insert do Supabase por um nó de "HTTP Request" (ou use o nó do Supabase se ele suportar RPC) para chamar o endpoint da função RPC:
-
-URL: https://[SEU_PROJETO].supabase.co/rest/v1/rpc/realizar_agendamento_seguro
-
-Método: POST
-
-Corpo: JSON com os parâmetros p_cliente_id, p_data_horario, etc.
-
-Lógica de Resposta do Bot:
-
-Conecte um nó de IF após a chamada da RPC.
-
-Se success == true: Envie mensagem de confirmação.
-
-Se success == false: Envie mensagem: "Putz, esse horário acabou de ser ocupado. Por favor, escolha outro!"
-
-4. AJUSTES FINAIS NO PAINEL SUPABASE
-Habilitar Replicação: Vá em Database > Replication > Tables e ative a chave (toggle) para a tabela agendamentos. Sem isso, o Realtime do site não funcionará.
-
-Configurações de Horário: Notei que seu SQL tem uma tabela config_barbearia. Certifique-se de que as funções de "Horários Livres" consultem essa tabela para não oferecer horários em que a barbearia está fechada.
-
-1. Falha de Segurança Crítica: Autenticação Hardcoded
-No seu script.js, as credenciais estão expostas em texto puro: username: 'jaonegro', password: 'crioulo'.
-
-O problema: Qualquer pessoa que inspecione o código (F12) pode ver o usuário e a senha e acessar o dashboard do barbeiro.
-
-Melhoria: Você deve usar o Supabase Auth. O login deve ser feito via supabase.auth.signInWithPassword(). Isso gera um token JWT seguro que o banco valida automaticamente via RLS.
-
-2. Lógica de "Geração de Horários Disponíveis" (SQL)
-Seu banco tem agendamentos, mas não tem uma lógica para dizer ao bot quais horários estão vazios.
-
-O problema: Atualmente, o bot provavelmente lê todos os agendamentos e "tenta adivinhar" o que está livre. Isso é processamento desnecessário no n8n.
-
-Melhoria: Criar uma Function SQL que receba uma data e devolva uma lista de horários disponíveis, já descontando os agendamentos e respeitando o horário de funcionamento da tabela config_barbearia.
-
-3. Validação de Esquema e Tipagem
-O problema: O JavaScript está enviando dados "na confiança" para o banco. Se um campo mudar de nome ou tipo, o sistema quebra silenciosamente.
-
-Melhoria: Implementar uma camada de validação (como o Zod ou simples verificações de tipo rigorosas) antes de disparar a RPC.
-
-4. Gestão de Estado no Frontend (Underengineering)
-Seu script.js mistura manipulação de DOM com lógica de dados em funções gigantes.
-
-O problema: À medida que o site cresce (ex: adicionar múltiplos barbeiros ou serviços complexos), o código se tornará impossível de manter ("código espaguete").
-
-Melhoria: Centralizar o estado da aplicação em um objeto único e usar funções puras para renderizar a interface.
-
-5. Auditoria e Logs de Erro
-O problema: Se um agendamento falhar no banco, você hoje só recebe um erro genérico. Você não sabe se foi falha de conexão ou erro de lógica.
-
-Melhoria: Criar uma tabela de logs_sistema para capturar erros de execução da RPC e falhas de comunicação do n8n.
-
-ARQUIVO COMPLEMENTAR: O QUE ESTAVA FALTANDO
-Abaixo, o trecho técnico para resolver os itens 1 e 2 (os mais graves). Adicione isso ao seu arquivo txt de melhorias.
+A. Função listar_horarios_livres (A joia da coroa): Esta função gera slots de tempo e remove os que já estão ocupados, respeitando a configuração de abertura e fechamento.
 
 SQL
 
--- =====================================================
--- COMPLEMENTO: SEGURANÇA E LÓGICA DE DISPONIBILIDADE
--- =====================================================
-
--- 1. Função para Listar Horários Disponíveis (Para o Bot)
--- Isso evita que o n8n tenha que "pensar"
 CREATE OR REPLACE FUNCTION listar_horarios_livres(p_data DATE)
-RETURNS TABLE (horario TIME) AS $$
+RETURNS TABLE (horario_disponivel TIME) AS $$
+DECLARE
+    v_dia_semana TEXT;
+    v_abre TIME;
+    v_fecha TIME;
 BEGIN
+    -- 1. Identifica o dia da semana
+    v_dia_semana := lower(trim(to_char(p_data, 'day')));
+
+    -- 2. Busca o horário de funcionamento dinamicamente da config_barbearia
+    -- Ex: abre_terca, fecha_terca, etc.
+    SELECT valor::TIME INTO v_abre FROM config_barbearia WHERE chave = 'abre_' || v_dia_semana;
+    SELECT valor::TIME INTO v_fecha FROM config_barbearia WHERE chave = 'fecha_' || v_dia_semana;
+
+    -- Se não houver configuração (ex: domingo/segunda), retorna nada
+    IF v_abre IS NULL OR v_fecha IS NULL THEN
+        RETURN;
+    END IF;
+
+    -- 3. Gera slots de 30 min e filtra os ocupados
     RETURN QUERY
     WITH slots AS (
-        -- Gera slots de 30 min (ajuste conforme sua necessidade)
-        SELECT s::TIME FROM generate_series(
-            (SELECT valor::TIME FROM config_barbearia WHERE chave = 'abre_terca'), -- Exemplo simplificado
-            (SELECT valor::TIME FROM config_barbearia WHERE chave = 'fecha_terca'),
-            '30 minutes'::interval
-        ) s
+        SELECT s::TIME as slot
+        FROM generate_series(v_abre, v_fecha - '30 min'::interval, '30 minutes'::interval) s
     )
-    SELECT s.s FROM slots s
-    WHERE s.s NOT IN (
-        SELECT horario_inicio FROM agendamentos 
-        WHERE CAST(data_horario AS DATE) = p_data AND status != 'cancelado'
+    SELECT s.slot 
+    FROM slots s
+    WHERE s.slot NOT IN (
+        SELECT horario_inicio 
+        FROM agendamentos 
+        WHERE date(data_horario) = p_data 
+          AND status NOT IN ('cancelado')
     );
 END;
 $$ LANGUAGE plpgsql;
+B. Ajuste na Tabela agendamentos: Garanta a trava de exclusividade para evitar que o site e o bot reservem o mesmo milissegundo.
 
--- 2. Alerta de Segurança: Remova as credenciais hardcoded do script.js
--- Instrução para a IA do VS Code:
--- "Remova a variável VALID_CREDENTIALS. Substitua a função handleLogin para usar 
--- o método supabase.auth.signInWithPassword() do SDK do Supabase."
-Veredito Final:
-Com o arquivo anterior + estas adições, você cobre:
+SQL
 
-Concorrência (Fim de agendamentos duplos).
+ALTER TABLE agendamentos ADD CONSTRAINT unique_agendamento_horario UNIQUE (data_horario);
+2. Camada de Frontend (Javascript / VS Code)
+O seu script.js atual ainda usa lógica de login insegura e manipulação de DOM dispersa.
 
-Reatividade (Agenda atualiza sozinha).
+Implementação de Realtime: No script.js, dentro da inicialização, adicione o listener para o barbeiro ver a agenda atualizar sozinha:
 
-Segurança Real (Auth do Supabase em vez de senha no código).
+JavaScript
 
-Performance do Bot (Banco calcula horários livres).
+function subscribeToAgendamentos() {
+    supabaseClient
+        .channel('realtime-agendamentos')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'agendamentos' }, (payload) => {
+            showNotification('Novo agendamento recebido!', 'success');
+            loadTodayAppointments(); // Função que você já tem no script.js
+        })
+        .subscribe();
+}
+Segurança (Auth): Substitua o login VALID_CREDENTIALS pelo Supabase Auth. Pare de expor senhas no código-fonte.
+
+Limpeza de Código: Peça para a IA remover as funções legadas de verificação manual de conflito (checkTimeConflictSupabase), pois agora o banco resolve isso via RPC.
+
+3. Camada de n8n (Otimização do Agente)
+O seu fluxo atual já está muito bom, mas sofre de "obesidade de contexto".
+
+Otimização de Contexto: No nó GeraContexto1, pare de carregar todos os agendamentos via getAll. Isso é caro e lento. A IA deve usar apenas a ferramenta (tool) Consultar Horários Livres sob demanda.
+
+Fluxo de Notificação Proativa (O que falta): Crie um fluxo novo iniciado por Webhook.
+
+No Supabase, crie um Database Webhook em agendamentos (INSERT).
+
+O n8n recebe o Webhook e dispara a mensagem: "Olá! Seu agendamento foi confirmado para às XX:XX".
+
+Ganho: Isso funciona se o barbeiro marcar no site OU se o bot marcar. Centraliza a confirmação.
+
+4. Checklist de Produção (Resumo Final)
+[ ] Banco: Função listar_horarios_livres instalada.
+
+[ ] Banco: Trava UNIQUE aplicada.
+
+[ ] Frontend: Replicação de Realtime ativada no painel do Supabase (Database -> Replication).
+
+[ ] Frontend: Trocar login hardcoded por supabase.auth.signInWithPassword.
+
+[ ] n8n: Webhook de confirmação proativa criado.

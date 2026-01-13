@@ -941,7 +941,7 @@ function setupEventListeners() {
 async function handleLogin(e) {
     e.preventDefault();
     
-    const email = document.getElementById('username').value; // Campo agora é email
+    const email = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
     if (!supabaseClient) {
@@ -965,7 +965,7 @@ async function handleLogin(e) {
             currentUser = { 
                 id: data.user.id,
                 email: data.user.email,
-                username: data.user.user_metadata?.nome || 'Usuário',
+                username: data.user.user_metadata?.nome || 'Jão',
                 role: data.user.user_metadata?.role || 'barbeiro'
             };
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -1264,12 +1264,25 @@ async function loadOverviewData() {
         document.getElementById('todayRevenue').textContent = `R$ ${selectedDateRevenue.toFixed(2)}`;
         document.getElementById('occupancyRate').textContent = `${occupancyRate}%`;
         
-        // Atualizar agendamentos de hoje se a data selecionada for hoje
-        const today = new Date().toISOString().split('T')[0];
-        if (selectedDate === today) {
-            todayAppointments = selectedDateData || [];
-            renderTodaySchedule();
-        }
+        // Atualizar agendamentos da data selecionada (independente de ser hoje)
+        todayAppointments = (selectedDateData || []).map((apt) => {
+            const nomeCliente = apt.cliente_nome_completo || apt.nome_cliente || apt.cliente_nome;
+            const telefoneCliente = apt.telefone || apt.cliente_telefone;
+            return {
+                id: apt.id,
+                data_horario: apt.data_horario,
+                horario_inicio: apt.horario_inicio,
+                horario_fim: apt.horario_fim,
+                status: apt.status,
+                preco_cobrado: parseFloat(apt.preco) || parseFloat(apt.preco_cobrado) || 0,
+                observacoes: apt.observacoes,
+                cliente_nome: (nomeCliente && String(nomeCliente).trim() && !['undefined','null'].includes(String(nomeCliente).trim().toLowerCase())) ? nomeCliente : 'Cliente não identificado',
+                telefone: (telefoneCliente && String(telefoneCliente).trim() && !['undefined','null'].includes(String(telefoneCliente).trim().toLowerCase())) ? telefoneCliente : '',
+                servico: apt.servico_nome || apt.servico,
+                duracao_minutos: apt.duracao_minutos
+            };
+        });
+        renderTodaySchedule();
         
     } catch (error) {
         console.error('Erro ao carregar dados de overview:', error);
@@ -1415,6 +1428,9 @@ function renderAppointmentsTable() {
                 </button>
                 <button class="action-btn btn-delete" onclick="deleteAppointment(${appointmentId})">
                     <i class="fas fa-trash"></i>
+                </button>
+                <button class="action-btn btn-contact" onclick="contactClientDirect('${rawTelefone}', '${clienteNome}')" title="WhatsApp">
+                    <i class="fab fa-whatsapp"></i>
                 </button>
             </td>
         `;
