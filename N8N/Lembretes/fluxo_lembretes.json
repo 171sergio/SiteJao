@@ -1,0 +1,251 @@
+{
+  "name": "Lembrete Automático 30min",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Cron (5 min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  a.id as agendamento_id,\n  COALESCE(c.nome, a.nome_cliente) as nome_cliente,\n  COALESCE(c.telefone, a.telefone) as telefone_cliente,\n  TO_CHAR(a.data_horario, 'DD/MM/YYYY HH24:MI') as data_formatada,\n  s.nome as servico_nome\nFROM agendamentos a\nLEFT JOIN clientes c ON a.cliente_id = c.id\nLEFT JOIN servicos s ON a.servico_id = s.id\nWHERE\n  a.status IN ('agendado', 'confirmado')\n  AND a.data_horario >= (NOW() + interval '29 minutes')\n  AND a.data_horario <= (NOW() + interval '36 minutes')\n  AND NOT EXISTS (\n    SELECT 1 FROM logs_sistema l\n    WHERE l.tipo = 'lembrete_30min'\n    AND (l.detalhes->>'agendamento_id')::text = a.id::text\n  )"
+      },
+      "id": "db-get-appointments",
+      "name": "Buscar Agendamentos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "mensagem",
+              "value": "={{ 'Olá ' + $json.nome_cliente + '! Seu agendamento de ' + $json.servico_nome + ' é daqui a 30 minutos (' + $json.data_formatada + '). Estamos te esperando!' }}"
+            },
+            {
+              "name": "telefone_destino",
+              "value": "={{ $json.telefone_cliente }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-template",
+      "name": "Criar Mensagem",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.seuservico.com/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer SEU_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone_destino }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.mensagem }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "http-send-msg",
+      "name": "Enviar WhatsApp (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.statusCode }}",
+              "value2": true
+            }
+          ],
+          "number": [
+            {
+              "value1": "={{ $json.statusCode }}",
+              "operation": "equal",
+              "value2": 200
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "Verificar Envio",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO logs_sistema (tipo, origem, mensagem, detalhes) VALUES ('lembrete_30min', 'n8n_automacao', $1, $2::jsonb)",
+        "additionalFields": {
+          "queryParams": "={{ $json.body.message || 'Lembrete enviado' }}, {{ JSON.stringify({ agendamento_id: $node[\"Buscar Agendamentos\"].json.agendamento_id, telefone: $node[\"Buscar Agendamentos\"].json.telefone_cliente, status: \"sucesso\" }) }}"
+        }
+      },
+      "id": "log-success",
+      "name": "Log Sucesso",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO logs_sistema (tipo, origem, mensagem, detalhes) VALUES ('erro_envio', 'n8n_automacao', $1, $2::jsonb)",
+        "additionalFields": {
+          "queryParams": "={{ 'Falha ao enviar para ' + $node[\"Buscar Agendamentos\"].json.nome_cliente }}, {{ JSON.stringify({ agendamento_id: $node[\"Buscar Agendamentos\"].json.agendamento_id, erro: $json.body || $json.error }) }}"
+        }
+      },
+      "id": "log-error",
+      "name": "Log Erro",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron (5 min)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Agendamentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Agendamentos": {
+      "main": [
+        [
+          {
+            "node": "Criar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp (API)": {
+      "main": [
+        [
+          {
+            "node": "Verificar Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Envio": {
+      "main": [
+        [
+          {
+            "node": "Log Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

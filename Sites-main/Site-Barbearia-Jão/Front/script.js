@@ -107,20 +107,21 @@ async function confirmQuickComplete() {
     const appointmentId = document.getElementById('quickCompleteId').value;
     const paymentMethod = document.getElementById('quickCompletePayment').value;
     const preco = parseFloat(quickCompleteAppointment.preco_cobrado || quickCompleteAppointment.preco || 0);
+    const isNaoPago = paymentMethod === 'nao_pago';
 
     try {
         showLoading();
 
         let updateData = {};
 
-        if (paymentMethod === 'nao_pago') {
+        if (isNaoPago) {
             updateData = {
                 status: 'concluido',
                 forma_pagamento: null, // Sem forma de pagamento definida
                 valor_liquido: 0,
                 taxa_aplicada: 0,
                 valor_pago: 0,
-                status_pagamento: 'pendente' // Pendente
+                status_pagamento: 'nao_pago' // Marcado como não pago
             };
         } else {
             updateData = {
@@ -140,13 +141,38 @@ async function confirmQuickComplete() {
 
         if (error) throw error;
 
-        showNotification('Atendimento concluído com sucesso!', 'success');
+        // Se "Não Pago", criar registro de inadimplente automaticamente
+        if (isNaoPago) {
+            // Extrair data do agendamento
+            const dataAgendamento = quickCompleteAppointment.data_horario
+                ? new Date(quickCompleteAppointment.data_horario).toISOString().split('T')[0]
+                : new Date().toISOString().split('T')[0];
+
+            await createInadimplenteFromAppointment({
+                agendamentoId: parseInt(appointmentId),
+                clienteId: quickCompleteAppointment.cliente_id || null,
+                telefone: quickCompleteAppointment.telefone || '',
+                nomeCliente: quickCompleteAppointment.cliente_nome || quickCompleteAppointment.nome_cliente || 'Cliente',
+                servico: quickCompleteAppointment.servico || quickCompleteAppointment.servico_nome || 'Serviço',
+                valorDevido: preco,
+                dataVencimento: dataAgendamento,
+                observacoes: 'Serviço concluído sem pagamento'
+            });
+
+            showNotification('Atendimento concluído e cliente adicionado aos inadimplentes!', 'warning');
+        } else {
+            showNotification('Atendimento concluído com sucesso!', 'success');
+        }
+
         closeQuickCompleteModal();
 
         // Recarregar dados
         loadAppointments();
         loadTodayAppointments();
         loadOverviewData();
+        if (isNaoPago) {
+            loadUnpaidClients(); // Atualizar lista de inadimplentes
+        }
 
     } catch (error) {
         console.error('Erro ao concluir atendimento:', error);
@@ -205,11 +231,21 @@ function updateRetroPrice() {
 function updateRetroSummary() {
     const preco = parseFloat(document.getElementById('retroPreco').value) || 0;
     const paymentMethod = document.getElementById('retroPagamento').value;
+    const summaryEl = document.getElementById('retroSummary');
+
+    // Handle "Não Pago" case
+    if (paymentMethod === 'nao_pago') {
+        summaryEl.innerHTML = `
+            <div class="net-value" style="color: #ff4444;">Cliente Devedor (Inadimplente)</div>
+            <div class="fee-info">O valor será pendurado na conta do cliente.</div>
+        `;
+        return;
+    }
+
     const feePercent = PAYMENT_FEES[paymentMethod] || 0;
     const feeValue = preco * (feePercent / 100);
     const netValue = preco - feeValue;
 
-    const summaryEl = document.getElementById('retroSummary');
     if (preco > 0) {
         summaryEl.innerHTML = `
             <div class="net-value">Você recebe: R$ ${netValue.toFixed(2)}</div>
@@ -263,14 +299,36 @@ async function saveRetroactiveAppointment(event) {
         // Buscar serviço
         const servicoData = services.find(s => s.nome === servico);
 
-        // Montar timestamp (usar horário padrão se não informado)
-        const horaInicio = horarioInicio || '12:00';
-        const horaFim = horarioFim || '13:00';
-        const dataHorario = new Date(`${data}T${horaInicio}:00`);
+        // Montar timestamp para retroativo
+        // Se não informou horário, gerar um timestamp único para evitar conflito de constraint
+        let horaInicio, horaFim, dataHorario;
+        let horarioNaoInformado = false;
 
-        // Calcular valores financeiros
-        const valorLiquido = calculateNetValue(preco, formaPagamento);
-        const taxaAplicada = PAYMENT_FEES[formaPagamento] || 0;
+        if (horarioInicio) {
+            // Horário informado - usar normalmente
+            horaInicio = horarioInicio;
+            horaFim = horarioFim || horarioInicio;
+            dataHorario = new Date(`${data}T${horaInicio}:00`);
+        } else {
+            // Horário NÃO informado - usar horário genérico com segundos aleatórios
+            // Isso evita conflito de unique constraint no slot de horário
+            // Usamos '00:00' como marcador de "horário não especificado"
+            const randomMinutes = Math.floor(Math.random() * 59).toString().padStart(2, '0');
+            const randomSeconds = Math.floor(Math.random() * 59).toString().padStart(2, '0');
+            horaInicio = `00:${randomMinutes}`; // Marca como horário não especificado
+            horaFim = `00:${randomMinutes}`;
+            horarioNaoInformado = true;
+            // Usar timestamp único para evitar conflitos
+            dataHorario = new Date(`${data}T00:${randomMinutes}:${randomSeconds}`);
+        }
+
+        // Determinar valores financeiros baseado no método de pagamento
+        const isNaoPago = formaPagamento === 'nao_pago';
+        const valorLiquido = isNaoPago ? 0 : calculateNetValue(preco, formaPagamento);
+        const taxaAplicada = isNaoPago ? 0 : (PAYMENT_FEES[formaPagamento] || 0);
+        const valorPago = isNaoPago ? 0 : preco;
+        const statusPagamento = isNaoPago ? 'nao_pago' : 'pago';
+        const formaPagamentoFinal = isNaoPago ? null : formaPagamento;
 
         // Inserir diretamente como CONCLUÍDO (é retroativo)
         const appointmentData = {
@@ -285,19 +343,37 @@ async function saveRetroactiveAppointment(event) {
             preco: preco,
             preco_cobrado: preco,
             status: 'concluido',
-            status_pagamento: 'pago',
-            forma_pagamento: formaPagamento,
+            status_pagamento: statusPagamento,
+            forma_pagamento: formaPagamentoFinal,
             valor_liquido: valorLiquido,
             taxa_aplicada: taxaAplicada,
-            valor_pago: preco,
-            observacoes: observacoes ? `[RETROATIVO] ${observacoes}` : '[RETROATIVO]'
+            valor_pago: valorPago,
+            observacoes: horarioNaoInformado
+                ? `[RETROATIVO - Horário não informado] ${observacoes || ''}`
+                : (observacoes ? `[RETROATIVO] ${observacoes}` : '[RETROATIVO]')
         };
 
-        const { error } = await supabaseClient
+        const { data: insertedAppointment, error } = await supabaseClient
             .from('agendamentos')
-            .insert([appointmentData]);
+            .insert([appointmentData])
+            .select()
+            .single();
 
         if (error) throw error;
+
+        // Se "Não Pago", criar registro de inadimplente automaticamente
+        if (isNaoPago && insertedAppointment) {
+            await createInadimplenteFromAppointment({
+                agendamentoId: insertedAppointment.id,
+                clienteId: cliente.id,
+                telefone: telefone,
+                nomeCliente: clienteNome,
+                servico: servico,
+                valorDevido: preco,
+                dataVencimento: data,
+                observacoes: `[RETROATIVO] ${observacoes || 'Registro retroativo não pago'}`
+            });
+        }
 
         showNotification('Atendimento retroativo salvo com sucesso!', 'success');
         closeRetroactiveModal();
@@ -307,12 +383,76 @@ async function saveRetroactiveAppointment(event) {
         loadTodayAppointments();
         loadOverviewData();
         loadReports();
+        if (isNaoPago) {
+            loadUnpaidClients(); // Atualizar lista de inadimplentes
+        }
 
     } catch (error) {
         console.error('Erro ao salvar retroativo:', error);
         showNotification('Erro: ' + error.message, 'error');
     } finally {
         hideLoading();
+    }
+}
+
+// =====================================================
+// HELPER: Criar registro de inadimplente a partir de agendamento
+// =====================================================
+async function createInadimplenteFromAppointment(params) {
+    if (!supabaseClient) {
+        console.error('Supabase não configurado');
+        return null;
+    }
+
+    try {
+        const inadimplenteData = {
+            agendamento_id: params.agendamentoId,
+            cliente_id: params.clienteId,
+            telefone: params.telefone || '',
+            nome_cliente: params.nomeCliente,
+            servico: params.servico,
+            valor_devido: params.valorDevido,
+            valor_pago: 0,
+            valor_restante: params.valorDevido,
+            data_vencimento: params.dataVencimento,
+            status_cobranca: 'pendente',
+            observacoes_cobranca: params.observacoes || 'Serviço não pago'
+        };
+
+        const { data: inadimplente, error } = await supabaseClient
+            .from('inadimplentes')
+            .insert([inadimplenteData])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Erro ao criar inadimplente:', error);
+            throw error;
+        }
+
+        // Registrar log de auditoria
+        await supabaseClient
+            .from('logs_sistema')
+            .insert([{
+                tipo: 'INADIMPLENTE_CRIADO',
+                origem: 'sistema',
+                mensagem: `Cliente ${params.nomeCliente} marcado como inadimplente - R$ ${params.valorDevido.toFixed(2)}`,
+                detalhes: {
+                    agendamento_id: params.agendamentoId,
+                    cliente_id: params.clienteId,
+                    valor: params.valorDevido,
+                    servico: params.servico,
+                    data_criacao: new Date().toISOString()
+                }
+            }]);
+
+        console.log('Inadimplente criado:', inadimplente);
+        return inadimplente;
+
+    } catch (error) {
+        console.error('Erro ao criar registro de inadimplente:', error);
+        showNotification('Erro ao registrar inadimplência: ' + error.message, 'error');
+        return null;
     }
 }
 
@@ -1756,9 +1896,11 @@ async function loadOverviewData() {
         // Clientes únicos do mês
         const uniqueClients = new Set(monthData?.map(item => item.cliente_nome) || []);
 
-        // Receita do mês (baseada nos preços dos agendamentos concluídos)
-        const monthlyRevenue = monthData?.filter(apt => apt.status === 'concluido')
-            .reduce((total, apt) => total + (parseFloat(apt.preco_cobrado) || 0), 0) || 0;
+        // Receita do mês (APENAS agendamentos com status_pagamento === 'pago')
+        // Qualquer agendamento que não esteja explicitamente marcado como PAGO não entra no faturamento
+        const monthlyRevenue = monthData?.filter(apt =>
+            apt.status === 'concluido' && apt.status_pagamento === 'pago'
+        ).reduce((total, apt) => total + (parseFloat(apt.preco_cobrado) || 0), 0) || 0;
 
         // Próximo cliente da data selecionada
         const nextAppointment = selectedDateData?.find(apt => {
@@ -1768,22 +1910,25 @@ async function loadOverviewData() {
         });
         const nextClient = nextAppointment ? (nextAppointment.cliente_nome || nextAppointment.nome_cliente) : 'Nenhum';
 
-        // Receita da data selecionada (bruto)
-        const selectedDateRevenue = selectedDateData?.filter(apt => apt.status === 'concluido')
-            .reduce((total, apt) => total + (parseFloat(apt.preco_cobrado) || parseFloat(apt.preco) || 0), 0) || 0;
+        // Receita da data selecionada (bruto) - APENAS status_pagamento === 'pago'
+        const selectedDateRevenue = selectedDateData?.filter(apt =>
+            apt.status === 'concluido' && apt.status_pagamento === 'pago'
+        ).reduce((total, apt) => total + (parseFloat(apt.preco_cobrado) || parseFloat(apt.preco) || 0), 0) || 0;
 
         // Receita Líquida (usando valor_liquido do banco ou calculando se não existir)
-        const selectedDateNetRevenue = selectedDateData?.filter(apt => apt.status === 'concluido')
-            .reduce((total, apt) => {
-                // Se já tem valor_liquido gravado no banco, usa ele
-                if (apt.valor_liquido != null && apt.valor_liquido !== 0) {
-                    return total + parseFloat(apt.valor_liquido);
-                }
-                // Senão, calcula baseado na forma_pagamento (ou assume 0 de taxa se não tiver)
-                const preco = parseFloat(apt.preco_cobrado) || parseFloat(apt.preco) || 0;
-                const formaPag = apt.forma_pagamento || 'dinheiro';
-                return total + calculateNetValue(preco, formaPag);
-            }, 0) || 0;
+        // APENAS status_pagamento === 'pago'
+        const selectedDateNetRevenue = selectedDateData?.filter(apt =>
+            apt.status === 'concluido' && apt.status_pagamento === 'pago'
+        ).reduce((total, apt) => {
+            // Se já tem valor_liquido gravado no banco, usa ele
+            if (apt.valor_liquido != null && apt.valor_liquido !== 0) {
+                return total + parseFloat(apt.valor_liquido);
+            }
+            // Senão, calcula baseado na forma_pagamento (ou assume 0 de taxa se não tiver)
+            const preco = parseFloat(apt.preco_cobrado) || parseFloat(apt.preco) || 0;
+            const formaPag = apt.forma_pagamento || 'dinheiro';
+            return total + calculateNetValue(preco, formaPag);
+        }, 0) || 0;
 
         // Taxa de ocupação (estimativa)
         const totalSlots = 20; // 10 horas * 2 slots por hora
@@ -1978,9 +2123,15 @@ function renderAppointmentsTable() {
 
         // Determinar status do pagamento para agendamentos concluídos
         let paymentBadge = '';
+        const statusPagamento = appointment.pagamento || appointment.status_pagamento;
+
         if (status === 'concluido') {
-            const formaPag = appointment.forma_pagamento;
-            if (!formaPag || formaPag === '' || formaPag === 'dinheiro' && !appointment.valor_pago) {
+            // Verificar se é "Não Pago" (inadimplente)
+            if (statusPagamento === 'nao_pago') {
+                paymentBadge = `<span class="payment-badge payment-unpaid" title="Cliente inadimplente - Não pagou">
+                    <i class="fas fa-times-circle"></i> Não Pago
+                </span>`;
+            } else if (!appointment.forma_pagamento || appointment.forma_pagamento === '' || (appointment.forma_pagamento === 'dinheiro' && !appointment.valor_pago)) {
                 // Concluído mas sem pagamento registrado - ALERTA! (clicável)
                 paymentBadge = `<span class="payment-badge payment-pending" title="Clique para definir pagamento" onclick="openQuickCompleteModal(${appointmentId})" style="cursor:pointer;">
                     <i class="fas fa-exclamation-triangle"></i> Pendente
@@ -1994,8 +2145,8 @@ function renderAppointmentsTable() {
                     'credito_vista': 'Crédito',
                     'credito_parcelado': 'Créd. Parc.'
                 };
-                paymentBadge = `<span class="payment-badge payment-paid" title="Pago via ${metodosNomes[formaPag] || formaPag}">
-                    <i class="fas fa-check-circle"></i> ${metodosNomes[formaPag] || 'Pago'}
+                paymentBadge = `<span class="payment-badge payment-paid" title="Pago via ${metodosNomes[appointment.forma_pagamento] || appointment.forma_pagamento}">
+                    <i class="fas fa-check-circle"></i> ${metodosNomes[appointment.forma_pagamento] || 'Pago'}
                 </span>`;
             }
         } else if (status === 'confirmado' || status === 'agendado') {
@@ -2080,14 +2231,20 @@ function renderTodaySchedule() {
 
         // Determinar status do pagamento para agendamentos concluídos
         let paymentBadge = '';
+        const statusPagamento = appointment.pagamento || appointment.status_pagamento;
+
         if (status === 'concluido') {
-            const formaPag = appointment.forma_pagamento;
-            if (!formaPag || formaPag === '' || formaPag === 'dinheiro' && !appointment.valor_pago) {
+            // Verificar se é "Não Pago" (inadimplente)
+            if (statusPagamento === 'nao_pago') {
+                paymentBadge = `<span class="payment-badge payment-unpaid" title="Cliente inadimplente - Não pagou">
+                    <i class="fas fa-times-circle"></i>
+                </span>`;
+            } else if (!appointment.forma_pagamento || appointment.forma_pagamento === '' || (appointment.forma_pagamento === 'dinheiro' && !appointment.valor_pago)) {
                 paymentBadge = `<span class="payment-badge payment-pending" title="Clique para definir pagamento" onclick="openQuickCompleteModal(${appointmentId})" style="cursor:pointer;">
                     <i class="fas fa-exclamation-triangle"></i>
                 </span>`;
             } else {
-                paymentBadge = `<span class="payment-badge payment-paid" title="Pago via ${formaPag}">
+                paymentBadge = `<span class="payment-badge payment-paid" title="Pago via ${appointment.forma_pagamento}">
                     <i class="fas fa-check-circle"></i>
                 </span>`;
             }
@@ -2508,6 +2665,7 @@ function renderReports(data) {
     let totalRevenue = 0;
     let totalAppointments = data.length;
     let completedAppointments = 0;
+    let paidAppointments = 0; // Contador para agendamentos efetivamente pagos
 
     const revenueByDate = {};
     const servicesCount = {};
@@ -2524,13 +2682,18 @@ function renderReports(data) {
 
         if (status === 'concluido') {
             completedAppointments++;
-            // Faturamento (apenas concluídos)
-            const preco = parseFloat(apt.preco_cobrado || apt.preco || 0);
-            totalRevenue += preco;
 
-            // Faturamento por Data
-            const dateKey = apt.data_horario ? apt.data_horario.split('T')[0] : 'N/A';
-            revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + preco;
+            // Faturamento (APENAS concluídos E PAGOS - exclui inadimplentes)
+            const statusPagamento = apt.pagamento || apt.status_pagamento;
+            if (statusPagamento === 'pago') {
+                paidAppointments++;
+                const preco = parseFloat(apt.preco_cobrado || apt.preco || 0);
+                totalRevenue += preco;
+
+                // Faturamento por Data (apenas pagos)
+                const dateKey = apt.data_horario ? apt.data_horario.split('T')[0] : 'N/A';
+                revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + preco;
+            }
         }
 
         // Serviços
@@ -2546,7 +2709,8 @@ function renderReports(data) {
         }
     });
 
-    const averageTicket = completedAppointments > 0 ? totalRevenue / completedAppointments : 0;
+    // Ticket médio baseado em agendamentos PAGOS, não apenas concluídos
+    const averageTicket = paidAppointments > 0 ? totalRevenue / paidAppointments : 0;
     const completionRate = totalAppointments > 0 ? (completedAppointments / totalAppointments * 100) : 0;
 
     // --- Renderizar Cards de Resumo ---
@@ -2720,16 +2884,16 @@ function renderReports(data) {
                     <div class="stat-row"><span>Faturamento Total</span><span class="highlight">R$ ${totalRevenue.toFixed(2)}</span></div>
                     <div class="stat-row"><span>Ticket Médio</span><span>R$ ${averageTicket.toFixed(2)}</span></div>
                     <div class="stat-row"><span>Receita Líquida (Real)</span><span>R$ ${
-            // Calcular receita líquida real iterando sobre os agendamentos concluídos
-            data.filter(a => a.status === 'concluido').reduce((acc, curr) => {
+            // Calcular receita líquida real iterando sobre os agendamentos concluídos E PAGOS
+            data.filter(a => a.status === 'concluido' && (a.pagamento === 'pago' || a.status_pagamento === 'pago')).reduce((acc, curr) => {
                 const val = parseFloat(curr.preco_cobrado || curr.preco || 0);
                 const method = curr.forma_pagamento || 'dinheiro';
                 return acc + calculateNetValue(val, method);
             }, 0).toFixed(2)
             }</span></div>
                     <div class="stat-row"><span>Taxas da Maquininha</span><span class="danger">- R$ ${
-            // Calcular total de taxas pagas (Faturamento - Receita Líquida)
-            data.filter(a => a.status === 'concluido').reduce((acc, curr) => {
+            // Calcular total de taxas pagas (Faturamento - Receita Líquida) - APENAS PAGOS
+            data.filter(a => a.status === 'concluido' && (a.pagamento === 'pago' || a.status_pagamento === 'pago')).reduce((acc, curr) => {
                 const val = parseFloat(curr.preco_cobrado || curr.preco || 0);
                 const method = curr.forma_pagamento || 'dinheiro';
                 const feePercent = PAYMENT_FEES[method] || 0;
@@ -4146,58 +4310,171 @@ async function markAsPaid(appointmentId) {
 }
 
 // Nova função para marcar como pago usando o ID da inadimplência (suporta inadimplência independente)
-async function markAsPaidByInadimplente(inadimplenteId) {
-    if (!confirm('Confirma que este pagamento foi realizado?')) {
-        return;
-    }
+// Agora abre modal para selecionar forma de pagamento
+let currentInadimplenteData = null;
 
+async function markAsPaidByInadimplente(inadimplenteId) {
     if (!supabaseClient) {
         showNotification('Funcionalidade disponível apenas com Supabase configurado', 'warning');
         return;
     }
 
     try {
-        // Buscar dados da inadimplência
+        // Buscar dados da inadimplência para exibir no modal
+        // Não fazemos join com clientes para evitar erros de coluna
         const { data: inadimplente, error: fetchError } = await supabaseClient
             .from('inadimplentes')
-            .select('valor_devido, agendamento_id, cliente_id')
+            .select('*, agendamentos(servico, preco_cobrado, nome_cliente)')
             .eq('id', inadimplenteId)
             .single();
 
         if (fetchError) throw fetchError;
 
+        // Guardar dados para usar na confirmação
+        currentInadimplenteData = inadimplente;
+
+        // Preencher modal com informações
+        document.getElementById('inadimplentePaymentId').value = inadimplenteId;
+
+        // Usar nome do cliente de diferentes fontes possíveis
+        const clienteNome = inadimplente.cliente_nome ||
+            inadimplente.agendamentos?.nome_cliente ||
+            'Cliente';
+        const servico = inadimplente.agendamentos?.servico || inadimplente.servico || 'Serviço';
+        const valor = parseFloat(inadimplente.valor_devido) || 0;
+
+        document.getElementById('inadimplentePaymentInfo').innerHTML = `
+            <div class="info-row"><strong>Cliente:</strong> ${clienteNome}</div>
+            <div class="info-row"><strong>Serviço:</strong> ${servico}</div>
+            <div class="info-row"><strong>Valor:</strong> <span class="highlight">R$ ${valor.toFixed(2)}</span></div>
+        `;
+
+        // Reset para dinheiro e atualizar resumo
+        document.getElementById('inadimplentePaymentMethod').value = 'dinheiro';
+        updateInadimplentePaymentSummary();
+
+        // Abrir modal
+        document.getElementById('inadimplentePaymentModal').style.display = 'flex';
+
+    } catch (error) {
+        console.error('Erro ao carregar dados do inadimplente:', error);
+        showNotification('Erro ao carregar dados: ' + error.message, 'error');
+    }
+}
+
+function closeInadimplentePaymentModal() {
+    document.getElementById('inadimplentePaymentModal').style.display = 'none';
+    currentInadimplenteData = null;
+}
+
+function updateInadimplentePaymentSummary() {
+    if (!currentInadimplenteData) return;
+
+    const method = document.getElementById('inadimplentePaymentMethod').value;
+    const valor = parseFloat(currentInadimplenteData.valor_devido) || 0;
+    const taxaPercent = PAYMENT_FEES[method] || 0;
+    const valorLiquido = calculateNetValue(valor, method);
+    const taxaValor = valor - valorLiquido;
+
+    const summaryEl = document.getElementById('inadimplentePaymentSummary');
+    summaryEl.innerHTML = `
+        <div class="summary-row">
+            <span>Valor Bruto:</span>
+            <span>R$ ${valor.toFixed(2)}</span>
+        </div>
+        <div class="summary-row ${taxaPercent > 0 ? 'danger' : ''}">
+            <span>Taxa (${taxaPercent}%):</span>
+            <span>- R$ ${taxaValor.toFixed(2)}</span>
+        </div>
+        <div class="summary-row total">
+            <span><strong>Valor Líquido:</strong></span>
+            <span class="success"><strong>R$ ${valorLiquido.toFixed(2)}</strong></span>
+        </div>
+    `;
+}
+
+async function confirmInadimplentePayment() {
+    if (!currentInadimplenteData) {
+        showNotification('Erro: dados não encontrados', 'error');
+        return;
+    }
+
+    const inadimplenteId = parseInt(document.getElementById('inadimplentePaymentId').value);
+    const paymentMethod = document.getElementById('inadimplentePaymentMethod').value;
+    const valor = parseFloat(currentInadimplenteData.valor_devido) || 0;
+    const valorLiquido = calculateNetValue(valor, paymentMethod);
+
+    try {
         // Atualizar status do inadimplente para quitado
         const { error: inadimplenteError } = await supabaseClient
             .from('inadimplentes')
             .update({
                 status_cobranca: 'quitado',
-                valor_pago: inadimplente?.valor_devido || 0,
+                valor_pago: valor,
                 valor_restante: 0
             })
             .eq('id', inadimplenteId);
 
         if (inadimplenteError) throw inadimplenteError;
 
-        // Se tiver agendamento vinculado, criar registro de pagamento
-        if (inadimplente?.agendamento_id) {
+        // Se tiver agendamento vinculado, atualizar status_pagamento
+        if (currentInadimplenteData.agendamento_id) {
+            const { error: agendamentoError } = await supabaseClient
+                .from('agendamentos')
+                .update({
+                    status_pagamento: 'pago',
+                    forma_pagamento: paymentMethod,
+                    valor_pago: valor,
+                    valor_liquido: valorLiquido,
+                    taxa_aplicada: PAYMENT_FEES[paymentMethod] || 0
+                })
+                .eq('id', currentInadimplenteData.agendamento_id);
+
+            if (agendamentoError) {
+                console.error('Erro ao atualizar agendamento:', agendamentoError);
+            }
+
+            // Criar registro de pagamento
             await supabaseClient
                 .from('pagamentos')
                 .insert({
-                    agendamento_id: inadimplente.agendamento_id,
-                    cliente_id: inadimplente.cliente_id,
-                    valor_pago: inadimplente.valor_devido,
-                    forma_pagamento: 'dinheiro',
+                    agendamento_id: currentInadimplenteData.agendamento_id,
+                    cliente_id: currentInadimplenteData.cliente_id,
+                    valor_pago: valor,
+                    forma_pagamento: paymentMethod,
                     status: 'pago',
                     data_pagamento: new Date().toISOString()
                 });
+
+            // Registrar log de auditoria
+            await supabaseClient
+                .from('logs_sistema')
+                .insert([{
+                    tipo: 'INADIMPLENTE_QUITADO',
+                    origem: 'sistema',
+                    mensagem: `Inadimplência quitada via ${paymentMethod} - R$ ${valor.toFixed(2)}`,
+                    detalhes: {
+                        inadimplente_id: inadimplenteId,
+                        agendamento_id: currentInadimplenteData.agendamento_id,
+                        cliente_id: currentInadimplenteData.cliente_id,
+                        valor: valor,
+                        valor_liquido: valorLiquido,
+                        forma_pagamento: paymentMethod,
+                        data_quitacao: new Date().toISOString()
+                    }
+                }]);
         }
 
-        showNotification('Pagamento marcado como realizado!', 'success');
-        loadUnpaidClients(); // Recarregar lista
+        closeInadimplentePaymentModal();
+        showNotification('Pagamento confirmado com sucesso!', 'success');
+        loadUnpaidClients();
+        loadAppointments();
+        loadTodayAppointments();
+        loadOverviewData();
 
     } catch (error) {
-        console.error('Erro ao marcar como pago:', error);
-        showNotification('Erro ao atualizar pagamento: ' + error.message, 'error');
+        console.error('Erro ao confirmar pagamento:', error);
+        showNotification('Erro ao confirmar pagamento: ' + error.message, 'error');
     }
 }
 
