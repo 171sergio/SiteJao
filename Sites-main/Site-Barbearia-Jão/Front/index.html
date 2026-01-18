@@ -1,41 +1,47 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barbearia do Jão - Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2.0">
+    <link rel="stylesheet" href="reports-text-styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <!-- Tela de Login -->
     <div id="loginScreen" class="login-screen">
         <div class="login-container">
             <div class="logo-container">
-            <img src="logo.svg" alt="Barbearia do Jão" class="logo">
+                <img src="logo.svg" alt="Barbearia do Jão" class="logo">
                 <h1>Barbearia do Jão</h1>
                 <p>Sistema de Gerenciamento</p>
             </div>
-            
+
             <form id="loginForm" class="login-form">
                 <div class="input-group">
                     <i class="fas fa-envelope"></i>
                     <input type="email" id="username" placeholder="Email" required>
                 </div>
-                
+
                 <div class="input-group">
                     <i class="fas fa-lock"></i>
                     <input type="password" id="password" placeholder="Senha" required>
                 </div>
-                
+
                 <button type="submit" class="login-btn">
                     <i class="fas fa-sign-in-alt"></i>
                     Entrar
                 </button>
-                
+
                 <div id="loginError" class="error-message" style="display: none;">
                     Email ou senha incorretos!
                 </div>
@@ -51,7 +57,7 @@
                 <img src="logo.svg" alt="Logo" class="header-logo">
                 <h2>Barbearia do Jão</h2>
             </div>
-            
+
             <div class="header-right">
                 <span id="userName" class="user-name">Bem-vindo, Jão!</span>
                 <button id="logoutBtn" class="logout-btn">
@@ -81,9 +87,9 @@
                     Clientes
                 </a>
                 <a href="#" class="nav-item" data-section="reports">
-                <i class="fas fa-chart-bar"></i>
-                Estatísticas
-            </a>
+                    <i class="fas fa-chart-bar"></i>
+                    Estatísticas
+                </a>
                 <a href="#" class="nav-item" data-section="unpaid">
                     <i class="fas fa-exclamation-triangle"></i>
                     Inadimplentes
@@ -144,6 +150,16 @@
                             <span id="occupancyRate" class="stat-number">0%</span>
                         </div>
                     </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Receita Líquida <small>(- taxas)</small></h4>
+                            <span id="todayNetRevenue" class="stat-number">R$ 0,00</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Agendamentos de Hoje -->
@@ -170,6 +186,9 @@
                     <div class="section-actions">
                         <button id="addAppointmentBtn" class="add-btn" onclick="openAddAppointmentModal()">
                             <i class="fas fa-plus"></i> Novo Agendamento
+                        </button>
+                        <button id="retroactiveBtn" class="add-btn btn-retroactive" onclick="openRetroactiveModal()">
+                            <i class="fas fa-history"></i> Registro Retroativo
                         </button>
                         <div class="filters">
                             <select id="statusFilter" class="filter-select">
@@ -232,13 +251,16 @@
                         <button id="addClientBtn" class="add-btn" onclick="openAddClientModal()">
                             <i class="fas fa-plus"></i> Novo Cliente
                         </button>
-                        <button id="importContactsBtn" class="add-btn" onclick="openImportContactsModal()" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                        <button id="importContactsBtn" class="add-btn" onclick="openImportContactsModal()"
+                            style="background: linear-gradient(135deg, #17a2b8, #138496);">
                             <i class="fas fa-download"></i> Importar Contatos
                         </button>
                         <div class="search-container">
-                            <input type="text" id="clientSearch" placeholder="Buscar cliente..." class="search-input" onkeyup="if(event.key==='Enter') loadClients()">
+                            <input type="text" id="clientSearch" placeholder="Buscar cliente..." class="search-input"
+                                onkeyup="if(event.key==='Enter') loadClients()">
                             <i class="fas fa-search search-icon"></i>
-                            <button id="refreshClients" class="refresh-btn" onclick="loadClients()" title="Atualizar lista">
+                            <button id="refreshClients" class="refresh-btn" onclick="loadClients()"
+                                title="Atualizar lista">
                                 <i class="fas fa-arrows-rotate"></i>
                             </button>
                         </div>
@@ -266,37 +288,63 @@
             </section>
 
             <!-- Seção Estatísticas -->
-        <section id="reports" class="content-section">
-            <div class="section-header">
-                <h3><i class="fas fa-chart-bar"></i> Estatísticas</h3>
-                    <div class="report-filters">
-                        <input type="date" id="reportStartDate" class="date-input">
-                        <input type="date" id="reportEndDate" class="date-input">
-                        <button class="btn btn-secondary" onclick="insertTestDataForReports()" style="margin-left: 10px;">
-                            <i class="fas fa-database"></i> Inserir Dados de Teste
+            <section id="reports" class="content-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-chart-bar"></i> Estatísticas</h3>
+                    <div class="report-controls">
+                        <button class="filter-btn active" onclick="toggleReportsView()" id="toggleViewBtn">
+                            <i class="fas fa-chart-pie"></i> Ver Gráficos
                         </button>
+                        <div class="date-filters">
+                            <button class="filter-btn" onclick="filterReports('today')">Hoje</button>
+                            <button class="filter-btn" onclick="filterReports('week')">7 Dias</button>
+                            <button class="filter-btn" onclick="filterReports('month')">Mês</button>
+                            <input type="date" id="reportStartDate" class="date-input" onchange="loadReports()">
+                            <input type="date" id="reportEndDate" class="date-input" onchange="loadReports()">
+                        </div>
                     </div>
                 </div>
 
-                <div class="reports-grid">
-                    <div class="report-card">
-                        <h4>Faturamento por Período</h4>
-                        <div id="revenueChart" class="chart-container">
-                            <!-- Gráfico será inserido aqui -->
-                        </div>
+                <!-- Visualização em Tabela (Padrão) -->
+                <div id="reportsTableView" class="reports-table-view">
+                    <div class="reports-grid" id="reportsGridText">
+                        <!-- Será preenchido via JS com os cards textuais originais -->
+                    </div>
+                </div>
+
+                <!-- Visualização Gráfica (Oculta por padrão) -->
+                <div id="reportsGraphView" class="reports-graph-view" style="display: none;">
+                    <div class="reports-summary-cards" id="reportsSummaryCards">
+                        <!-- Cards de resumo (Ticket Médio, etc) para a visualização gráfica -->
                     </div>
 
-                    <div class="report-card">
-                        <h4>Serviços Mais Procurados</h4>
-                        <div id="servicesChart" class="chart-container">
-                            <!-- Gráfico será inserido aqui -->
+                    <div class="reports-grid">
+                        <div class="report-card medium-card">
+                            <h4>Faturamento Diário</h4>
+                            <div class="chart-container">
+                                <canvas id="revenueChartCanvas"></canvas>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="report-card">
-                        <h4>Estatísticas Gerais</h4>
-                        <div id="generalStats" class="stats-summary">
-                            <!-- Estatísticas serão inseridas aqui -->
+                        <div class="report-card medium-card">
+                            <h4>Horários de Pico</h4>
+                            <div class="chart-container">
+                                <canvas id="hoursChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="report-card small-card">
+                            <h4>Serviços Realizados</h4>
+                            <div class="chart-container">
+                                <canvas id="servicesChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="report-card small-card">
+                            <h4>Status dos Agendamentos</h4>
+                            <div class="chart-container">
+                                <canvas id="statusChartCanvas"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -312,7 +360,9 @@
                             Adicionar Inadimplente
                         </button>
                         <div class="filters">
-                            <input type="text" id="unpaidClientFilter" class="filter-input" placeholder="Buscar por cliente ou telefone..." onkeyup="if(event.key==='Enter') loadUnpaidClients()">
+                            <input type="text" id="unpaidClientFilter" class="filter-input"
+                                placeholder="Buscar por cliente ou telefone..."
+                                onkeyup="if(event.key==='Enter') loadUnpaidClients()">
                             <button id="refreshUnpaid" class="refresh-btn" onclick="loadUnpaidClients()">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
@@ -384,40 +434,45 @@
                     <div class="form-group">
                         <label>Cliente:</label>
                         <div class="client-search-container">
-                            <input type="text" id="addNome" placeholder="Digite o nome do cliente..." required autocomplete="off">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('add')" title="Cadastrar novo cliente">
+                            <input type="text" id="addNome" placeholder="Digite o nome do cliente..." required
+                                autocomplete="off">
+                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('add')"
+                                title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('add')" title="Buscar Cliente">
+                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('add')"
+                                title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
                             <div id="addClientSuggestions" class="client-suggestions" style="display: none;"></div>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Telefone:</label>
                         <div class="telefone-input-group">
                             <span class="telefone-prefix">+55</span>
-                            <input type="tel" id="addDDD" class="telefone-ddd" placeholder="31" maxlength="2" pattern="[0-9]{2}" title="DDD com 2 dígitos">
+                            <input type="tel" id="addDDD" class="telefone-ddd" placeholder="31" maxlength="2"
+                                pattern="[0-9]{2}" title="DDD com 2 dígitos">
                             <span class="telefone-prefix">9</span>
-                            <input type="tel" id="addNumero" class="telefone-numero" placeholder="9999-9999" maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
+                            <input type="tel" id="addNumero" class="telefone-numero" placeholder="9999-9999"
+                                maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
                             <input type="hidden" id="addTelefone">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Serviço:</label>
                         <select id="addServico" required onchange="updateAddServicePrice()">
                             <option value="">Carregando serviços...</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="addData">Data:</label>
                         <input type="date" id="addData" required>
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="addHorarioInicio">Horário de Início:</label>
@@ -428,22 +483,34 @@
                             <input type="time" id="addHorarioFim" step="900" required>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Preço:</label>
                         <input type="number" id="addPreco" step="0.01" min="0" placeholder="0.00" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Status:</label>
-                        <select id="addStatus" required>
+                        <select id="addStatus" required onchange="togglePaymentMethodVisibility('add')">
                             <option value="agendado">Agendado</option>
                             <option value="confirmado">Confirmado</option>
                             <option value="concluido">Concluído</option>
                             <option value="cancelado">Cancelado</option>
                         </select>
                     </div>
-                    
+
+                    <div class="form-group" id="addPaymentMethodGroup" style="display: none;">
+                        <label>Forma de Pagamento:</label>
+                        <select id="addFormaPagamento">
+                            <option value="">Selecione...</option>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="pix">Pix</option>
+                            <option value="debito">Débito (1.38%)</option>
+                            <option value="credito_vista">Crédito à Vista (3.16%)</option>
+                            <option value="credito_parcelado">Crédito Parcelado (12.41%)</option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>Observações:</label>
                         <textarea id="addObservacoes" rows="3" placeholder="Observações adicionais..."></textarea>
@@ -467,44 +534,49 @@
             <div class="modal-body">
                 <form id="editForm">
                     <input type="hidden" id="editId">
-                    
+
                     <div class="form-group">
                         <label>Cliente:</label>
                         <div class="client-search-container">
-                            <input type="text" id="editNome" placeholder="Digite o nome do cliente..." required autocomplete="off">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('edit')" title="Cadastrar novo cliente">
+                            <input type="text" id="editNome" placeholder="Digite o nome do cliente..." required
+                                autocomplete="off">
+                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('edit')"
+                                title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('edit')" title="Buscar Cliente">
+                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('edit')"
+                                title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
                             <div id="clientSuggestions" class="client-suggestions" style="display: none;"></div>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Telefone:</label>
                         <div class="telefone-input-group">
                             <span class="telefone-prefix">+55</span>
-                            <input type="tel" id="editDDD" class="telefone-ddd" placeholder="31" maxlength="2" pattern="[0-9]{2}" title="DDD com 2 dígitos">
+                            <input type="tel" id="editDDD" class="telefone-ddd" placeholder="31" maxlength="2"
+                                pattern="[0-9]{2}" title="DDD com 2 dígitos">
                             <span class="telefone-prefix">9</span>
-                            <input type="tel" id="editNumero" class="telefone-numero" placeholder="9999-9999" maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
+                            <input type="tel" id="editNumero" class="telefone-numero" placeholder="9999-9999"
+                                maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
                             <input type="hidden" id="editTelefone">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Serviço:</label>
                         <select id="editServico" required onchange="updateEditServicePrice()">
                             <option value="">Carregando serviços...</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Data:</label>
                         <input type="date" id="editData" required>
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
                             <label>Horário de Início:</label>
@@ -515,22 +587,34 @@
                             <input type="time" id="editHorarioFim" step="900" required>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Preço:</label>
                         <input type="number" id="editPreco" step="0.01" min="0" placeholder="0.00" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Status:</label>
-                        <select id="editStatus" required>
+                        <select id="editStatus" required onchange="togglePaymentMethodVisibility('edit')">
                             <option value="agendado">Agendado</option>
                             <option value="confirmado">Confirmado</option>
                             <option value="concluido">Concluído</option>
                             <option value="cancelado">Cancelado</option>
                         </select>
                     </div>
-                    
+
+                    <div class="form-group" id="editPaymentMethodGroup" style="display: none;">
+                        <label>Forma de Pagamento:</label>
+                        <select id="editFormaPagamento">
+                            <option value="">Selecione...</option>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="pix">Pix</option>
+                            <option value="debito">Débito (1.38%)</option>
+                            <option value="credito_vista">Crédito à Vista (3.16%)</option>
+                            <option value="credito_parcelado">Crédito Parcelado (12.41%)</option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label>Observações:</label>
                         <textarea id="editObservacoes" rows="3"></textarea>
@@ -553,11 +637,13 @@
             </div>
             <div class="modal-body">
                 <form id="addUnpaidForm" onsubmit="addUnpaidClient(event)">
+                    <input type="hidden" id="editUnpaidId">
                     <div class="form-group">
                         <label>Tipo de Inadimplência:</label>
                         <div class="radio-group">
                             <label class="radio-label">
-                                <input type="radio" name="unpaidType" value="independent" checked onchange="toggleUnpaidType()">
+                                <input type="radio" name="unpaidType" value="independent" checked
+                                    onchange="toggleUnpaidType()">
                                 <span>Inadimplência Independente</span>
                             </label>
                             <label class="radio-label">
@@ -566,7 +652,7 @@
                             </label>
                         </div>
                     </div>
-                    
+
                     <div id="appointmentSelection" class="form-group" style="display: none;">
                         <label>Filtrar Agendamentos:</label>
                         <div class="appointment-filters">
@@ -577,7 +663,8 @@
                                 <option value="" selected>Todos os Serviços</option>
                             </select>
                             <input type="date" id="filterByDate" class="filter-date" placeholder="Filtrar por data">
-                            <button type="button" id="clearFiltersBtn" class="btn-clear-filters" onclick="clearAppointmentFilters()" title="Limpar Filtros">
+                            <button type="button" id="clearFiltersBtn" class="btn-clear-filters"
+                                onclick="clearAppointmentFilters()" title="Limpar Filtros">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -586,52 +673,59 @@
                             <option value="">Selecione um agendamento</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Cliente:</label>
                         <div class="client-search-container">
-                            <input type="text" id="addUnpaidNome" placeholder="Digite o nome do cliente..." required autocomplete="off">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('unpaid')" title="Cadastrar novo cliente">
+                            <input type="text" id="addUnpaidNome" placeholder="Digite o nome do cliente..." required
+                                autocomplete="off">
+                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('unpaid')"
+                                title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('unpaid')" title="Buscar Cliente">
+                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('unpaid')"
+                                title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
-                            <div id="addUnpaidClientSuggestions" class="client-suggestions" style="display: none;"></div>
+                            <div id="addUnpaidClientSuggestions" class="client-suggestions" style="display: none;">
+                            </div>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Telefone:</label>
                         <div class="telefone-input-group">
                             <span class="telefone-prefix">+55</span>
-                            <input type="tel" id="addUnpaidDDD" class="telefone-ddd" placeholder="31" maxlength="2" pattern="[0-9]{2}" title="DDD com 2 dígitos">
+                            <input type="tel" id="addUnpaidDDD" class="telefone-ddd" placeholder="31" maxlength="2"
+                                pattern="[0-9]{2}" title="DDD com 2 dígitos">
                             <span class="telefone-prefix">9</span>
-                            <input type="tel" id="addUnpaidNumero" class="telefone-numero" placeholder="9999-9999" maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
+                            <input type="tel" id="addUnpaidNumero" class="telefone-numero" placeholder="9999-9999"
+                                maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
                             <input type="hidden" id="addUnpaidTelefone">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="addUnpaidServico">Serviço:</label>
                         <select id="addUnpaidServico" required onchange="updateUnpaidServicePrice()">
                             <option value="">Carregando serviços...</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="addUnpaidData">Data do Serviço:</label>
                         <input type="date" id="addUnpaidData" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Valor Devido:</label>
                         <input type="number" id="addUnpaidValor" step="0.01" min="0" placeholder="0.00" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Observações:</label>
-                        <textarea id="addUnpaidObservacoes" rows="3" placeholder="Motivo da inadimplência, detalhes do serviço, etc..."></textarea>
+                        <textarea id="addUnpaidObservacoes" rows="3"
+                            placeholder="Motivo da inadimplência, detalhes do serviço, etc..."></textarea>
                     </div>
                 </form>
             </div>
@@ -655,28 +749,30 @@
                         <label>Nome Completo:</label>
                         <input type="text" id="addClientNome" placeholder="Digite o nome completo..." required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Telefone:</label>
                         <div class="telefone-input-group">
                             <span class="telefone-prefix">+55</span>
-                            <input type="text" id="addClientDDD" maxlength="2" placeholder="DD" required style="width: 50px; text-align: center;">
+                            <input type="text" id="addClientDDD" maxlength="2" placeholder="DD" required
+                                style="width: 50px; text-align: center;">
                             <span class="telefone-prefix">9</span>
-                            <input type="text" id="addClientNumero" maxlength="9" placeholder="XXXX-XXXX" required style="flex: 1;">
+                            <input type="text" id="addClientNumero" maxlength="9" placeholder="XXXX-XXXX" required
+                                style="flex: 1;">
                             <input type="hidden" id="addClientTelefone">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Email (opcional):</label>
                         <input type="email" id="addClientEmail" placeholder="cliente@email.com">
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Data de Nascimento (opcional):</label>
                         <input type="date" id="addClientDataNascimento">
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Status:</label>
                         <select id="addClientStatus" required>
@@ -685,10 +781,11 @@
                             <option value="bloqueado">Bloqueado</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Observações:</label>
-                        <textarea id="addClientObservacoes" rows="3" placeholder="Preferências, observações especiais..."></textarea>
+                        <textarea id="addClientObservacoes" rows="3"
+                            placeholder="Preferências, observações especiais..."></textarea>
                     </div>
                 </form>
             </div>
@@ -707,14 +804,16 @@
                 <span class="close" onclick="closeImportContactsModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <p style="color: #b0b0b0; margin-bottom: 20px;">Informe seu primeiro nome para importar os contatos da sua instância do WhatsApp.</p>
-                
+                <p style="color: #b0b0b0; margin-bottom: 20px;">Informe seu primeiro nome para importar os contatos da
+                    sua instância do WhatsApp.</p>
+
                 <div class="form-group">
                     <label>Seu primeiro nome:</label>
                     <input type="text" id="importContactsName" placeholder="Ex: João" required>
                 </div>
-                
-                <div id="importContactsStatus" style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px;">
+
+                <div id="importContactsStatus"
+                    style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px;">
                 </div>
             </div>
             <div class="modal-footer">
@@ -736,33 +835,35 @@
             <div class="modal-body">
                 <form id="editClientForm" onsubmit="updateClient(event)">
                     <input type="hidden" id="editClientId">
-                    
+
                     <div class="form-group">
                         <label>Nome Completo:</label>
                         <input type="text" id="editClientNome" placeholder="Digite o nome completo..." required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Telefone:</label>
                         <div class="telefone-input-group">
                             <span class="telefone-prefix">+55</span>
-                            <input type="text" id="editClientDDD" maxlength="2" placeholder="DD" required style="width: 50px; text-align: center;">
+                            <input type="text" id="editClientDDD" maxlength="2" placeholder="DD" required
+                                style="width: 50px; text-align: center;">
                             <span class="telefone-prefix">9</span>
-                            <input type="text" id="editClientNumero" maxlength="9" placeholder="XXXX-XXXX" required style="flex: 1;">
+                            <input type="text" id="editClientNumero" maxlength="9" placeholder="XXXX-XXXX" required
+                                style="flex: 1;">
                             <input type="hidden" id="editClientTelefone">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Email (opcional):</label>
                         <input type="email" id="editClientEmail" placeholder="cliente@email.com">
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Data de Nascimento (opcional):</label>
                         <input type="date" id="editClientDataNascimento">
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Status:</label>
                         <select id="editClientStatus" required>
@@ -771,10 +872,11 @@
                             <option value="bloqueado">Bloqueado</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Observações:</label>
-                        <textarea id="editClientObservacoes" rows="3" placeholder="Preferências, observações especiais..."></textarea>
+                        <textarea id="editClientObservacoes" rows="3"
+                            placeholder="Preferências, observações especiais..."></textarea>
                     </div>
                 </form>
             </div>
@@ -806,12 +908,12 @@
                         <label>Nome Completo:</label>
                         <input type="text" id="quickClientNome" placeholder="Digite o nome completo..." required>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label>Telefone:</label>
-                        <input type="tel" id="quickClientTelefone" placeholder="(11) 99999-9999" required>
+                        <label>Telefone (opcional):</label>
+                        <input type="tel" id="quickClientTelefone" placeholder="(11) 99999-9999">
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Email (opcional):</label>
                         <input type="email" id="quickClientEmail" placeholder="cliente@email.com">
@@ -835,7 +937,8 @@
             <div class="search-section">
                 <div class="form-group">
                     <label for="clientSearchInput">Buscar por nome ou telefone</label>
-                    <input type="text" id="clientSearchInput" placeholder="Digite para buscar..." oninput="searchExistingClients()">
+                    <input type="text" id="clientSearchInput" placeholder="Digite para buscar..."
+                        oninput="searchExistingClients()">
                 </div>
                 <div id="clientSearchResults" class="client-search-results">
                     <div class="search-loading">Digite pelo menos 2 caracteres para buscar...</div>
@@ -847,7 +950,149 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="script.js"></script>
+    <!-- Modal de Conclusão Rápida (Pagamento) -->
+    <div id="quickCompleteModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h4><i class="fas fa-check-circle"></i> Concluir Atendimento</h4>
+                <span class="close" onclick="closeQuickCompleteModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="quickCompleteId">
+
+                <div class="quick-complete-info" id="quickCompleteInfo">
+                    <!-- Info do agendamento será preenchida via JS -->
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-credit-card"></i> Como foi pago?</label>
+                    <select id="quickCompletePayment" class="payment-select-large">
+                        <option value="dinheiro">💵 Dinheiro</option>
+                        <option value="pix">📱 Pix</option>
+                        <option value="debito">💳 Débito (taxa 1.38%)</option>
+                        <option value="credito_vista">💳 Crédito à Vista (taxa 3.16%)</option>
+                        <option value="credito_parcelado">💳 Crédito Parcelado (taxa 12.41%)</option>
+                        <option value="nao_pago" style="color: #ff4444; font-weight: bold;">❌ Não Pago (Pendurar)
+                        </option>
+                    </select>
+                </div>
+
+                <div class="quick-complete-summary" id="quickCompleteSummary">
+                    <!-- Resumo com valor líquido será calculado via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeQuickCompleteModal()">Cancelar</button>
+                <button type="button" class="btn-save btn-complete" onclick="confirmQuickComplete()">
+                    <i class="fas fa-check"></i> Confirmar Pagamento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Registro Retroativo -->
+    <div id="retroactiveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header modal-header-retroactive">
+                <h4><i class="fas fa-history"></i> Registro Retroativo</h4>
+                <span class="close" onclick="closeRetroactiveModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="retroactive-info">
+                    <i class="fas fa-info-circle"></i>
+                    Use esta opção para registrar atendimentos que já foram realizados mas não foram cadastrados no
+                    sistema.
+                </div>
+
+                <form id="retroactiveForm" onsubmit="saveRetroactiveAppointment(event)">
+                    <div class="form-group">
+                        <label>Cliente:</label>
+                        <div class="client-search-container">
+                            <input type="text" id="retroNome" placeholder="Digite o nome do cliente..." required
+                                autocomplete="off">
+                            <input type="hidden" id="retroClienteId">
+                            <button type="button" class="btn-new-client" onclick="openQuickClientForRetro()"
+                                title="Cadastrar novo cliente">
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                            <button type="button" class="btn-search-client" onclick="openClientSearchForRetro()"
+                                title="Buscar Cliente">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <div id="retroClientSuggestions" class="client-suggestions" style="display: none;"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Telefone (opcional):</label>
+                        <div class="telefone-input-group">
+                            <span class="telefone-prefix">+55</span>
+                            <input type="tel" id="retroDDD" class="telefone-ddd" placeholder="31" maxlength="2"
+                                pattern="[0-9]{2}" title="DDD com 2 dígitos">
+                            <span class="telefone-prefix">9</span>
+                            <input type="tel" id="retroNumero" class="telefone-numero" placeholder="9999-9999"
+                                maxlength="9" pattern="[0-9]{4}-?[0-9]{4}" title="8 dígitos do número">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Serviço:</label>
+                        <select id="retroServico" required onchange="updateRetroPrice()">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Valor Cobrado (R$):</label>
+                        <input type="number" id="retroPreco" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data do Atendimento:</label>
+                        <input type="date" id="retroData" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Horário (opcional):</label>
+                        <div class="time-inputs">
+                            <input type="time" id="retroHorarioInicio">
+                            <span>até</span>
+                            <input type="time" id="retroHorarioFim">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Forma de Pagamento:</label>
+                        <select id="retroPagamento" required onchange="updateRetroSummary()">
+                            <option value="dinheiro">Dinheiro (0%)</option>
+                            <option value="pix">Pix (0%)</option>
+                            <option value="debito">Débito (taxa 1.38%)</option>
+                            <option value="credito_vista">Crédito à Vista (taxa 3.16%)</option>
+                            <option value="credito_parcelado">Crédito Parcelado (taxa 12.41%)</option>
+                        </select>
+                    </div>
+
+                    <div class="retro-summary" id="retroSummary">
+                        <!-- Resumo será preenchido via JS -->
+                    </div>
+
+                    <div class="form-group">
+                        <label>Observações:</label>
+                        <textarea id="retroObservacoes" rows="2" placeholder="Observações..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeRetroactiveModal()">Cancelar</button>
+                <button type="submit" form="retroactiveForm" class="btn-save">
+                    <i class="fas fa-save"></i> Salvar Atendimento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js?v=2.0"></script>
+    <script src="script.js?v=2.0"></script>
 </body>
+
 </html>

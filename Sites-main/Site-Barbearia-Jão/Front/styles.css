@@ -149,7 +149,7 @@ body {
 /* Dashboard */
 .dashboard {
     display: grid;
-    grid-template-areas: 
+    grid-template-areas:
         "header header"
         "sidebar main";
     grid-template-columns: 250px 1fr;
@@ -306,7 +306,9 @@ body {
 }
 
 /* Melhorias nos filtros */
-.filter-select, .filter-date, .filter-input {
+.filter-select,
+.filter-date,
+.filter-input {
     background: rgba(44, 44, 44, 0.8);
     border: 1px solid rgba(220, 38, 38, 0.3);
     color: white;
@@ -315,7 +317,9 @@ body {
     font-size: 0.9rem;
 }
 
-.filter-select:focus, .filter-date:focus, .filter-input:focus {
+.filter-select:focus,
+.filter-date:focus,
+.filter-input:focus {
     outline: none;
     border-color: #dc2626;
     box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
@@ -591,6 +595,7 @@ body {
         transform: translateX(100%);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
@@ -598,13 +603,20 @@ body {
 }
 
 /* Controles */
-.date-selector, .filters, .schedule-controls, .report-filters {
+.date-selector,
+.filters,
+.schedule-controls,
+.report-filters {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.date-input, .filter-select, .filter-date, .search-input, .day-select {
+.date-input,
+.filter-select,
+.filter-date,
+.search-input,
+.day-select {
     background: rgba(44, 44, 44, 0.8);
     border: 1px solid rgba(220, 38, 38, 0.3);
     color: #ffffff;
@@ -613,13 +625,19 @@ body {
     font-size: 0.9rem;
 }
 
-.date-input:focus, .filter-select:focus, .filter-date:focus, .search-input:focus, .day-select:focus {
+.date-input:focus,
+.filter-select:focus,
+.filter-date:focus,
+.search-input:focus,
+.day-select:focus {
     outline: none;
     border-color: #dc2626;
     box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
 }
 
-.today-btn, .refresh-btn, .generate-btn {
+.today-btn,
+.refresh-btn,
+.generate-btn {
     background: var(--secondary-color);
     color: white;
     border: none;
@@ -631,7 +649,9 @@ body {
     margin-left: 10px;
 }
 
-.today-btn:hover, .refresh-btn:hover, .generate-btn:hover {
+.today-btn:hover,
+.refresh-btn:hover,
+.generate-btn:hover {
     background: #b91c1c;
     transform: translateY(-2px);
 }
@@ -1262,13 +1282,14 @@ body {
     .appointment-filters {
         grid-template-columns: 1fr;
     }
-    
+
     .btn-clear-filters {
         width: 100%;
     }
 }
 
-.today-btn, .tomorrow-btn {
+.today-btn,
+.tomorrow-btn {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
     color: white;
     border: none;
@@ -1280,7 +1301,8 @@ body {
     font-size: 0.9rem;
 }
 
-.today-btn:hover, .tomorrow-btn:hover {
+.today-btn:hover,
+.tomorrow-btn:hover {
     background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(220, 38, 38, 0.3);
@@ -1562,11 +1584,11 @@ body {
     cursor: pointer;
 }
 
-.radio-label input[type="radio"]:checked + span {
+.radio-label input[type="radio"]:checked+span {
     color: #ffffff;
 }
 
-.radio-label input[type="radio"]:checked ~ .radio-label {
+.radio-label input[type="radio"]:checked~.radio-label {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
     border-color: #dc2626;
     box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
@@ -1651,13 +1673,13 @@ body {
         flex-direction: column;
         gap: 0.75rem;
     }
-    
+
     .radio-label {
         min-width: auto;
         width: 100%;
         padding: 0.875rem 1.25rem;
     }
-    
+
     .radio-label span {
         font-size: 0.9rem;
     }
@@ -1749,26 +1771,26 @@ body {
     .login-screen {
         padding: 15px;
     }
-    
+
     .login-container {
         padding: 2rem;
         max-width: 350px;
     }
-    
+
     .logo {
         width: 70px;
         height: 70px;
     }
-    
+
     .logo-container h1 {
         font-size: 1.6rem;
     }
-    
+
     .input-group input {
         padding: 12px 12px 12px 40px;
         font-size: 0.95rem;
     }
-    
+
     .login-btn {
         padding: 12px;
         font-size: 1rem;
@@ -1782,7 +1804,7 @@ body {
         min-height: 100vh;
         align-items: stretch;
     }
-    
+
     .login-container {
         padding: 1.5rem;
         max-width: 100%;
@@ -1792,35 +1814,35 @@ body {
         justify-content: center;
         min-height: calc(100vh - 20px);
     }
-    
+
     .logo {
         width: 60px;
         height: 60px;
     }
-    
+
     .logo-container h1 {
         font-size: 1.4rem;
     }
-    
+
     .logo-container p {
         font-size: 0.8rem;
     }
-    
+
     .input-group input {
         padding: 10px 10px 10px 35px;
         font-size: 0.9rem;
     }
-    
+
     .input-group i {
         left: 12px;
         font-size: 0.9rem;
     }
-    
+
     .login-btn {
         padding: 10px;
         font-size: 0.95rem;
     }
-    
+
     .error-message {
         font-size: 0.8rem;
         padding: 8px;
@@ -1832,21 +1854,21 @@ body {
     .login-container {
         padding: 1rem;
     }
-    
+
     .logo {
         width: 50px;
         height: 50px;
     }
-    
+
     .logo-container h1 {
         font-size: 1.2rem;
     }
-    
+
     .input-group input {
         padding: 8px 8px 8px 30px;
         font-size: 0.85rem;
     }
-    
+
     .login-btn {
         padding: 8px;
         font-size: 0.9rem;
@@ -1953,16 +1975,16 @@ body {
         gap: 15px;
         align-items: flex-start;
     }
-    
+
     .schedule-legend {
         gap: 10px;
     }
-    
+
     .time-slots {
         grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
         gap: 8px;
     }
-    
+
     .time-slot {
         padding: 10px 6px;
         font-size: 0.8rem;
@@ -1974,7 +1996,7 @@ body {
         grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
         gap: 6px;
     }
-    
+
     .time-slot {
         padding: 8px 4px;
         font-size: 0.75rem;
@@ -2143,6 +2165,43 @@ body {
     border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
+/* Payment badges */
+.payment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.payment-pending {
+    background: rgba(255, 152, 0, 0.2);
+    color: #FF9800;
+    border: 1px solid rgba(255, 152, 0, 0.4);
+    animation: pulse-warning 1.5s ease-in-out infinite;
+}
+
+.payment-paid {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+@keyframes pulse-warning {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
 /* Botões de ação */
 .action-buttons {
     display: flex;
@@ -2254,7 +2313,7 @@ body {
     max-height: 200px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .client-suggestion {
@@ -2363,17 +2422,17 @@ body {
     .clients-table {
         font-size: 0.85rem;
     }
-    
+
     .clients-table th,
     .clients-table td {
         padding: 10px 8px;
     }
-    
+
     .action-buttons {
         flex-direction: column;
         gap: 4px;
     }
-    
+
     .btn-edit,
     .btn-delete,
     .btn-contact {
@@ -2387,19 +2446,19 @@ body {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .clients-controls {
         justify-content: center;
     }
-    
+
     .client-search {
         min-width: 200px;
     }
-    
+
     .clients-table-container {
         overflow-x: auto;
     }
-    
+
     .clients-table {
         min-width: 800px;
     }
@@ -2644,6 +2703,7 @@ body {
         opacity: 0;
         transform: translateY(-50px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -2969,84 +3029,95 @@ body {
 /* Responsividade */
 @media (max-width: 768px) {
     .dashboard {
-        grid-template-areas: 
+        grid-template-areas:
             "header"
             "main";
         grid-template-columns: 1fr;
         grid-template-rows: 70px 1fr;
     }
-    
+
     .sidebar {
         display: none;
     }
-    
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .section-header {
         flex-direction: column;
         gap: 1rem;
         align-items: stretch;
     }
-    
-    .filters, .schedule-controls, .report-filters {
+
+    .filters,
+    .schedule-controls,
+    .report-filters {
         flex-wrap: wrap;
     }
-    
+
     .appointments-table-container {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     .appointments-table {
-        min-width: 800px; /* Garante que a tabela tenha largura mínima */
+        min-width: 800px;
+        /* Garante que a tabela tenha largura mínima */
     }
-    
+
     .appointments-table th,
     .appointments-table td {
         padding: 10px 8px;
         font-size: 0.9rem;
         white-space: nowrap;
     }
-    
+
     /* Ajustar larguras das colunas para mobile */
-    .appointments-table th:nth-child(1), /* Cliente */
+    .appointments-table th:nth-child(1),
+    /* Cliente */
     .appointments-table td:nth-child(1) {
         min-width: 150px;
     }
-    
-    .appointments-table th:nth-child(2), /* Telefone */
+
+    .appointments-table th:nth-child(2),
+    /* Telefone */
     .appointments-table td:nth-child(2) {
         min-width: 120px;
     }
-    
-    .appointments-table th:nth-child(3), /* Serviço */
+
+    .appointments-table th:nth-child(3),
+    /* Serviço */
     .appointments-table td:nth-child(3) {
         min-width: 100px;
     }
-    
-    .appointments-table th:nth-child(4), /* Data */
+
+    .appointments-table th:nth-child(4),
+    /* Data */
     .appointments-table td:nth-child(4) {
         min-width: 90px;
     }
-    
-    .appointments-table th:nth-child(5), /* Horário */
+
+    .appointments-table th:nth-child(5),
+    /* Horário */
     .appointments-table td:nth-child(5) {
         min-width: 80px;
     }
-    
-    .appointments-table th:nth-child(6), /* Preço */
+
+    .appointments-table th:nth-child(6),
+    /* Preço */
     .appointments-table td:nth-child(6) {
         min-width: 80px;
     }
-    
-    .appointments-table th:nth-child(7), /* Status */
+
+    .appointments-table th:nth-child(7),
+    /* Status */
     .appointments-table td:nth-child(7) {
         min-width: 100px;
     }
-    
-    .appointments-table th:nth-child(8), /* Ações */
+
+    .appointments-table th:nth-child(8),
+    /* Ações */
     .appointments-table td:nth-child(8) {
         min-width: 120px;
         position: sticky;
@@ -3054,129 +3125,134 @@ body {
         background: rgba(44, 44, 44, 0.95);
         border-left: 1px solid rgba(220, 38, 38, 0.2);
     }
-    
+
     /* Botões de ação menores no mobile */
     .action-btn {
         padding: 4px 8px;
         font-size: 0.75rem;
         margin: 0 1px;
     }
-    
-    .btn-edit, .btn-delete {
+
+    .btn-edit,
+    .btn-delete {
         padding: 6px 10px;
         font-size: 0.8rem;
         margin-right: 3px;
     }
-    
+
     .time-slots {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 8px;
     }
-    
+
     .time-slot {
         padding: 10px 8px;
         font-size: 0.85rem;
     }
-    
+
     .slot-time {
         font-size: 0.9rem;
         margin-bottom: 2px;
     }
-    
+
     .slot-client {
         font-size: 0.75rem;
         line-height: 1.2;
     }
-    
+
     /* Melhor visualização dos slots ocupados no mobile */
     .time-slot.occupied.main-slot .slot-time {
         font-size: 0.8rem;
         line-height: 1.1;
     }
-    
+
     .time-slot.occupied.secondary-slot {
         opacity: 0.9;
     }
-    
+
     .time-slot.occupied.secondary-slot .slot-time {
         font-size: 0.8rem;
     }
-    
+
     .clients-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .reports-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .unpaid-summary {
         grid-template-columns: 1fr;
     }
-    
+
     .unpaid-actions {
         flex-direction: column;
     }
-    
+
     .mark-paid-btn,
     .contact-btn {
         font-size: 0.7rem;
         padding: 4px 8px;
     }
-    
+
     /* Header mobile */
     .header {
         padding: 0 15px;
     }
-    
+
     .header h2 {
         font-size: 1.3rem;
     }
-    
+
     /* Controles de data mobile */
-    .date-selector, .schedule-controls {
+    .date-selector,
+    .schedule-controls {
         gap: 8px;
     }
-    
-    .date-input, .day-select {
+
+    .date-input,
+    .day-select {
         padding: 8px 12px;
         font-size: 0.85rem;
     }
-    
-    .today-btn, .tomorrow-btn, .refresh-btn {
+
+    .today-btn,
+    .tomorrow-btn,
+    .refresh-btn {
         padding: 8px 12px;
         font-size: 0.85rem;
     }
-    
+
     /* Estatísticas mobile */
     .summary-stats {
         grid-template-columns: repeat(3, 1fr);
         gap: 10px;
     }
-    
+
     .stat-item {
         padding: 0.8rem;
     }
-    
+
     .stat-number {
         font-size: 1.5rem;
     }
-    
+
     .stat-label {
         font-size: 0.8rem;
     }
-    
+
     /* Modal responsivo */
     .modal-content {
         width: 95%;
         max-width: 500px;
         margin: 10px;
     }
-    
+
     .form-row {
         flex-direction: column;
     }
-    
+
     .form-row .form-group {
         width: 100%;
     }
@@ -3188,97 +3264,100 @@ body {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
         gap: 6px;
     }
-    
+
     .time-slot {
         padding: 8px 6px;
         font-size: 0.8rem;
     }
-    
+
     .slot-time {
         font-size: 0.85rem;
         margin-bottom: 1px;
     }
-    
+
     .slot-client {
         font-size: 0.7rem;
         line-height: 1.1;
     }
-    
+
     .time-slot.occupied.main-slot .slot-time {
         font-size: 0.75rem;
         line-height: 1;
     }
-    
+
     .time-slot.occupied.secondary-slot .slot-time {
         font-size: 0.75rem;
     }
-    
+
     /* Header ainda menor */
     .header h2 {
         font-size: 1.1rem;
     }
-    
+
     /* Controles compactos */
-    .date-input, .day-select {
+    .date-input,
+    .day-select {
         padding: 6px 10px;
         font-size: 0.8rem;
     }
-    
-    .today-btn, .tomorrow-btn, .refresh-btn {
+
+    .today-btn,
+    .tomorrow-btn,
+    .refresh-btn {
         padding: 6px 10px;
         font-size: 0.8rem;
     }
-    
+
     /* Estatísticas compactas */
     .summary-stats {
         grid-template-columns: 1fr;
         gap: 8px;
     }
-    
+
     .stat-item {
         padding: 0.6rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
-    
+
     .stat-number {
         font-size: 1.3rem;
     }
-    
+
     .stat-label {
         font-size: 0.75rem;
     }
-    
+
     /* Modal ainda mais compacto */
     .modal-content {
         width: 98%;
         margin: 5px;
         padding: 15px;
     }
-    
+
     .modal-header h3 {
         font-size: 1.2rem;
     }
-    
+
     .form-group label {
         font-size: 0.85rem;
     }
-    
+
     .form-group input,
     .form-group select,
     .form-group textarea {
         padding: 8px 10px;
         font-size: 0.85rem;
     }
-    
+
     /* Tabela ainda mais compacta */
     .appointments-table th,
     .appointments-table td {
         padding: 8px 6px;
         font-size: 0.8rem;
     }
-    
+
     .action-btn {
         padding: 3px 6px;
         font-size: 0.7rem;
@@ -3291,6 +3370,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -3499,17 +3579,17 @@ body {
         gap: 6px;
         padding: 10px;
     }
-    
+
     .telefone-prefix {
         font-size: 13px;
     }
-    
+
     .telefone-ddd {
         width: 45px !important;
         min-width: 45px !important;
         font-size: 13px !important;
     }
-    
+
     .telefone-numero {
         width: 100% !important;
         flex: 1 1 auto;
@@ -3688,13 +3768,14 @@ body {
 
 /* Garantir que os botões de ação sempre sejam visíveis */
 @media (max-width: 768px) {
+
     /* Adicionar padding extra nas células de ações */
     .appointments-table td:last-child,
     .clients-table td:last-child {
         padding-right: 20px;
         white-space: nowrap;
     }
-    
+
     /* Garantir que os botões não sejam comprimidos */
     .action-btn,
     .edit-btn,
@@ -3703,7 +3784,7 @@ body {
         flex-shrink: 0;
         min-width: 35px;
     }
-    
+
     /* Indicador visual de scroll horizontal */
     .appointments-table-container::after,
     .clients-table-container::after,
@@ -3718,26 +3799,29 @@ body {
         font-style: italic;
         border-top: 1px solid rgba(220, 38, 38, 0.2);
     }
-    
+
     /* Ocultar indicador quando já rolou */
     .appointments-table-container.scrolled::after,
     .clients-table-container.scrolled::after,
     .unpaid-table-container.scrolled::after {
         display: none;
     }
-    
+
     /* Ajustar section-actions para scroll horizontal se necessário */
     .section-actions {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
+        scrollbar-width: none;
+        /* Firefox */
+        -ms-overflow-style: none;
+        /* IE/Edge */
     }
-    
+
     .section-actions::-webkit-scrollbar {
-        display: none; /* Chrome/Safari */
+        display: none;
+        /* Chrome/Safari */
     }
-    
+
     /* Garantir que filtros também permitam scroll */
     .filters {
         overflow-x: auto;
@@ -3745,8 +3829,352 @@ body {
         scrollbar-width: none;
         -ms-overflow-style: none;
     }
-    
+
     .filters::-webkit-scrollbar {
         display: none;
     }
+}
+
+/* ==================== AUTOCOMPLETE OTIMIZADO ==================== */
+
+/* Container de sugestões */
+#clientSuggestions,
+#addClientSuggestions,
+#addUnpaidClientSuggestions,
+[id$="Suggestions"] {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(30, 30, 30, 0.98);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    display: none;
+    margin-top: 4px;
+    backdrop-filter: blur(10px);
+}
+
+/* Cada sugestão de cliente */
+.client-suggestion {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.client-suggestion:last-child {
+    border-bottom: none;
+}
+
+.client-suggestion:hover,
+.client-suggestion.selected {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(179, 28, 28, 0.2) 100%);
+    border-left: 3px solid #dc2626;
+    padding-left: 13px;
+}
+
+.client-suggestion.selected {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.3) 0%, rgba(179, 28, 28, 0.3) 100%);
+}
+
+/* Nome do cliente nas sugestões */
+.client-suggestion-name {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+}
+
+.client-suggestion-name strong {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+/* Telefone do cliente nas sugestões */
+.client-suggestion-phone {
+    color: rgba(79, 195, 247, 0.8);
+    font-size: 0.85rem;
+}
+
+.client-suggestion-phone strong {
+    color: #4FC3F7;
+    font-weight: 600;
+}
+
+/* Mensagem de "nenhum resultado" */
+.client-suggestion.no-results {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+    cursor: default;
+    padding: 20px 16px;
+}
+
+.client-suggestion.no-results:hover {
+    background: transparent;
+    border-left: 0;
+    padding-left: 16px;
+}
+
+/* Scrollbar customizada para sugestões */
+#clientSuggestions::-webkit-scrollbar,
+#addClientSuggestions::-webkit-scrollbar,
+#addUnpaidClientSuggestions::-webkit-scrollbar,
+[id$="Suggestions"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+#clientSuggestions::-webkit-scrollbar-track,
+#addClientSuggestions::-webkit-scrollbar-track,
+#addUnpaidClientSuggestions::-webkit-scrollbar-track,
+[id$="Suggestions"]::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+#clientSuggestions::-webkit-scrollbar-thumb,
+#addClientSuggestions::-webkit-scrollbar-thumb,
+#addUnpaidClientSuggestions::-webkit-scrollbar-thumb,
+[id$="Suggestions"]::-webkit-scrollbar-thumb {
+    background: rgba(220, 38, 38, 0.5);
+    border-radius: 3px;
+}
+
+#clientSuggestions::-webkit-scrollbar-thumb:hover,
+#addClientSuggestions::-webkit-scrollbar-thumb:hover,
+#addUnpaidClientSuggestions::-webkit-scrollbar-thumb:hover,
+[id$="Suggestions"]::-webkit-scrollbar-thumb:hover {
+    background: rgba(220, 38, 38, 0.8);
+}
+
+/* Animação de fade-in para o dropdown */
+@keyframes autocompleteSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#clientSuggestions[style*="block"],
+#addClientSuggestions[style*="block"],
+#addUnpaidClientSuggestions[style*="block"] {
+    animation: autocompleteSlideIn 0.15s ease-out;
+}
+
+/* Update Report Grid Layout */
+.reports-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.reports-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.medium-card {
+    grid-column: span 1;
+}
+
+.small-card {
+    grid-column: span 1;
+}
+
+/* Responsiveness */
+@media (max-width: 992px) {
+    .reports-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.no-data {
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    padding: 2rem;
+    font-style: italic;
+}
+
+/* Modal de Conclusão Rápida */
+.modal-small {
+    max-width: 400px;
+}
+
+.quick-complete-info {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-left: 4px solid #DC2626;
+}
+
+.quick-complete-info .client-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.quick-complete-info .service-info {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.quick-complete-info .price-info {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #4CAF50;
+    margin-top: 10px;
+}
+
+.payment-select-large {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.payment-select-large:hover,
+.payment-select-large:focus {
+    border-color: #DC2626;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.payment-select-large option {
+    background: #1a1a1a;
+    color: #fff;
+    padding: 10px;
+}
+
+.quick-complete-summary {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+    text-align: center;
+}
+
+.quick-complete-summary .net-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #4CAF50;
+}
+
+.quick-complete-summary .fee-info {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 5px;
+}
+
+.btn-complete {
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+    padding: 12px 25px;
+    font-size: 1rem;
+}
+
+.btn-complete:hover {
+    background: linear-gradient(135deg, #66BB6A 0%, #388E3C 100%);
+    transform: translateY(-2px);
+}
+
+/* Botão de concluir rápido na tabela */
+.btn-quick-complete {
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.btn-quick-complete:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+/* Registro Retroativo */
+.btn-retroactive {
+    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
+}
+
+.btn-retroactive:hover {
+    background: linear-gradient(135deg, #FFA726 0%, #FF9800 100%) !important;
+}
+
+.modal-header-retroactive {
+    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+}
+
+.retroactive-info {
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    color: #FFB74D;
+    font-size: 0.9rem;
+}
+
+.retroactive-info i {
+    margin-right: 8px;
+}
+
+.retro-summary {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 15px 0;
+    text-align: center;
+}
+
+.retro-summary .net-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #4CAF50;
+}
+
+.retro-summary .fee-info {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 5px;
+}
+
+.btn-retroactive-save {
+    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+}
+
+.btn-retroactive-save:hover {
+    background: linear-gradient(135deg, #FFA726 0%, #FF9800 100%);
+}
+
+/* Modal de busca de cliente - z-index alto para ficar sobre outros modais */
+#clientSearchModal,
+#quickClientModal {
+    z-index: 2000;
 }

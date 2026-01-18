@@ -1,0 +1,57 @@
+/* Estilos para cards de estatísticas textuais */
+.stat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.95rem;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.stat-row span:first-child {
+    color: #aaaaaa;
+}
+
+.stat-row span:last-child {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.stat-row span.highlight {
+    color: #dc2626;
+    font-size: 1.1rem;
+}
+
+.stat-row span.success {
+    color: #4CAF50;
+}
+
+.stat-row span.danger {
+    color: #f44336;
+}
+
+.scrollable-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.scrollable-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb {
+    background: rgba(220, 38, 38, 0.5);
+    border-radius: 4px;
+}
