@@ -1,7 +1,7 @@
 -- =====================================================
--- BANCO COMPLETO + MELHORIAS - BARBEARIA DO JÃO
+-- BANCO COMPLETO UNIFICADO - BARBEARIA DO JÃO
 -- Execute TUDO de uma vez no Supabase SQL Editor
--- Este arquivo substitui BANCO_COMPLETO_SUPABASE.sql
+-- Este arquivo unifica: BANCO_SITEJAO + update_schema + update_payments_schema
 -- =====================================================
 
 -- =====================================================
@@ -32,10 +32,10 @@ DROP FUNCTION IF EXISTS registrar_log CASCADE;
 -- PARTE 2: TABELAS PRINCIPAIS
 -- =====================================================
 
--- CLIENTES
+-- CLIENTES (telefone é opcional)
 CREATE TABLE clientes (
     id SERIAL PRIMARY KEY,
-    telefone VARCHAR(20) UNIQUE NOT NULL,
+    telefone VARCHAR(20) UNIQUE,
     telefone_normalizado VARCHAR(30),
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100),
@@ -67,14 +67,14 @@ CREATE TABLE servicos (
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- AGENDAMENTOS (estrutura híbrida para bot + site)
+-- AGENDAMENTOS (estrutura híbrida para bot + site + campos financeiros)
 CREATE TABLE agendamentos (
     id SERIAL PRIMARY KEY,
     -- Campos relacionais (usados pelo site)
     cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
     servico_id INTEGER REFERENCES servicos(id) ON DELETE SET NULL,
     -- Campos diretos (usados pelo bot)
-    telefone VARCHAR(20) NOT NULL DEFAULT '',
+    telefone VARCHAR(20) DEFAULT '',
     nome_cliente VARCHAR(100) NOT NULL DEFAULT '',
     servico VARCHAR(100) NOT NULL DEFAULT '',
     -- Campos compartilhados
@@ -84,12 +84,20 @@ CREATE TABLE agendamentos (
     preco DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     status VARCHAR(20) DEFAULT 'agendado' CHECK (status IN ('agendado', 'confirmado', 'em_andamento', 'concluido', 'cancelado', 'nao_compareceu')),
     observacoes TEXT,
+    -- Campos Financeiros (InfinitePay)
+    forma_pagamento VARCHAR(50),
+    preco_cobrado DECIMAL(10,2),
+    valor_liquido DECIMAL(10,2) DEFAULT 0.00,
+    taxa_aplicada DECIMAL(10,2) DEFAULT 0.00,
+    status_pagamento VARCHAR(50) DEFAULT 'pendente',
+    valor_pago DECIMAL(10,2) DEFAULT 0,
+    valor_pendente DECIMAL(10,2) DEFAULT 0,
     -- Metadados
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     cancelado_em TIMESTAMP,
     concluido_em TIMESTAMP,
-    -- MELHORIA: Constraint para prevenir agendamentos duplos
+    -- Constraint para prevenir agendamentos duplos
     CONSTRAINT unique_appointment_slot UNIQUE (data_horario)
 );
 
@@ -97,7 +105,6 @@ CREATE INDEX idx_agendamentos_cliente_id ON agendamentos(cliente_id);
 CREATE INDEX idx_agendamentos_telefone ON agendamentos(telefone);
 CREATE INDEX idx_agendamentos_data_horario ON agendamentos(data_horario);
 CREATE INDEX idx_agendamentos_status ON agendamentos(status);
--- MELHORIA: Índice para performance do Dashboard
 CREATE INDEX idx_agendamentos_prod ON agendamentos(status, data_horario DESC);
 
 -- PAGAMENTOS
@@ -162,7 +169,7 @@ CREATE TABLE config_barbearia (
     UNIQUE(categoria, chave)
 );
 
--- MELHORIA: TABELA DE LOGS DO SISTEMA (Auditoria)
+-- TABELA DE LOGS DO SISTEMA (Auditoria)
 CREATE TABLE logs_sistema (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(50) NOT NULL,
@@ -199,10 +206,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Função para sincronizar cliente_id com telefone
+-- Função para sincronizar cliente_id com telefone (suporta telefone nulo/vazio)
 CREATE OR REPLACE FUNCTION sincronizar_cliente_agendamento()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Só tenta buscar cliente se telefone não for nulo/vazio
     IF NEW.cliente_id IS NULL AND NEW.telefone IS NOT NULL AND NEW.telefone != '' THEN
         SELECT id INTO NEW.cliente_id FROM clientes WHERE telefone = NEW.telefone LIMIT 1;
     END IF;
@@ -271,7 +279,7 @@ CREATE TRIGGER trigger_normaliza_telefone_clientes
 BEFORE INSERT OR UPDATE ON clientes FOR EACH ROW EXECUTE FUNCTION trg_normaliza_telefone_clientes();
 
 -- =====================================================
--- PARTE 5: VIEWS
+-- PARTE 5: VIEWS (com campos financeiros)
 -- =====================================================
 
 CREATE VIEW vw_agendamentos_completos AS
@@ -290,7 +298,7 @@ SELECT
     a.horario_inicio,
     a.horario_fim,
     a.preco,
-    a.preco as preco_cobrado,
+    COALESCE(a.preco_cobrado, a.preco) as preco_cobrado,
     a.status,
     a.observacoes,
     a.criado_em,
@@ -299,7 +307,14 @@ SELECT
     a.concluido_em,
     COALESCE(c.email, '') as cliente_email,
     COALESCE(c.status_cliente, 'ativo') as status_cliente,
-    COALESCE(s.duracao_minutos, 30) as duracao_minutos
+    COALESCE(s.duracao_minutos, 30) as duracao_minutos,
+    -- Campos Financeiros
+    a.forma_pagamento,
+    a.valor_liquido,
+    a.taxa_aplicada,
+    a.status_pagamento,
+    a.valor_pago,
+    a.valor_pendente
 FROM agendamentos a
 LEFT JOIN clientes c ON a.cliente_id = c.id
 LEFT JOIN servicos s ON a.servico_id = s.id;
@@ -318,10 +333,10 @@ WHERE DATE(a.data_horario) = CURRENT_DATE
 ORDER BY a.horario_inicio ASC;
 
 -- =====================================================
--- PARTE 6: FUNÇÕES RPC (MELHORIAS)
+-- PARTE 6: FUNÇÕES RPC
 -- =====================================================
 
--- MELHORIA: Função RPC para agendamento seguro (Atomicidade)
+-- Função RPC para agendamento seguro (Atomicidade)
 CREATE OR REPLACE FUNCTION realizar_agendamento_seguro(
     p_cliente_id INT,
     p_servico_id INT,
@@ -353,7 +368,7 @@ WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql;
 
--- MELHORIA: Função para listar horários disponíveis (Para o Bot)
+-- Função para listar horários disponíveis (Para o Bot)
 CREATE OR REPLACE FUNCTION listar_horarios_livres(p_data DATE)
 RETURNS TABLE (horario TIME) AS $$
 DECLARE
@@ -399,7 +414,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- MELHORIA: Função para registrar logs
+-- Função para registrar logs
 CREATE OR REPLACE FUNCTION registrar_log(
     p_tipo VARCHAR(50),
     p_origem VARCHAR(100),
@@ -413,7 +428,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =====================================================
--- PARTE 7: SEGURANÇA (RLS)
+-- PARTE 7: SEGURANÇA (RLS) - POLÍTICAS SEGURAS
 -- =====================================================
 
 ALTER TABLE agendamentos ENABLE ROW LEVEL SECURITY;
@@ -424,14 +439,49 @@ ALTER TABLE inadimplentes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE config_barbearia ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logs_sistema ENABLE ROW LEVEL SECURITY;
 
--- Policies permissivas (ajuste conforme necessidade)
-CREATE POLICY "Permitir Acesso Anon Agendamentos" ON agendamentos FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir Acesso Anon Clientes" ON clientes FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir Acesso Anon Servicos" ON servicos FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir Acesso Anon Pagamentos" ON pagamentos FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir Acesso Anon Inadimplentes" ON inadimplentes FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir Acesso Anon Config" ON config_barbearia FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir Acesso Anon Logs" ON logs_sistema FOR ALL USING (true) WITH CHECK (true);
+-- Remover políticas antigas (caso existam)
+DROP POLICY IF EXISTS "Permitir Acesso Anon Agendamentos" ON agendamentos;
+DROP POLICY IF EXISTS "Permitir Acesso Anon Clientes" ON clientes;
+DROP POLICY IF EXISTS "Permitir Acesso Anon Servicos" ON servicos;
+DROP POLICY IF EXISTS "Permitir Acesso Anon Pagamentos" ON pagamentos;
+DROP POLICY IF EXISTS "Permitir Acesso Anon Inadimplentes" ON inadimplentes;
+DROP POLICY IF EXISTS "Permitir Acesso Anon Config" ON config_barbearia;
+DROP POLICY IF EXISTS "Permitir Acesso Anon Logs" ON logs_sistema;
+
+-- POLÍTICAS SEGURAS: Apenas usuários autenticados têm acesso completo
+-- Anon só pode consultar (SELECT) serviços e config
+
+-- AGENDAMENTOS: Somente usuários autenticados
+CREATE POLICY "Acesso Autenticado Agendamentos" ON agendamentos
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- CLIENTES: Somente usuários autenticados
+CREATE POLICY "Acesso Autenticado Clientes" ON clientes
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- SERVIÇOS: Anon pode consultar, autenticados têm acesso completo
+CREATE POLICY "Acesso Leitura Anon Servicos" ON servicos
+    FOR SELECT TO anon USING (true);
+CREATE POLICY "Acesso Autenticado Servicos" ON servicos
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- PAGAMENTOS: Somente usuários autenticados
+CREATE POLICY "Acesso Autenticado Pagamentos" ON pagamentos
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- INADIMPLENTES: Somente usuários autenticados
+CREATE POLICY "Acesso Autenticado Inadimplentes" ON inadimplentes
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- CONFIG: Anon pode consultar, autenticados têm acesso completo
+CREATE POLICY "Acesso Leitura Anon Config" ON config_barbearia
+    FOR SELECT TO anon USING (true);
+CREATE POLICY "Acesso Autenticado Config" ON config_barbearia
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- LOGS: Somente usuários autenticados
+CREATE POLICY "Acesso Autenticado Logs" ON logs_sistema
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- =====================================================
 -- PARTE 8: DADOS INICIAIS
@@ -473,15 +523,17 @@ ON CONFLICT (categoria, chave) DO NOTHING;
 DO $$
 BEGIN
     RAISE NOTICE '================================================';
-    RAISE NOTICE 'BANCO COMPLETO + MELHORIAS APLICADOS COM SUCESSO!';
+    RAISE NOTICE 'BANCO UNIFICADO APLICADO COM SUCESSO!';
     RAISE NOTICE '================================================';
-    RAISE NOTICE '✓ Tabelas criadas: clientes, servicos, agendamentos, pagamentos, inadimplentes, logs_atendimento, config_barbearia, logs_sistema';
+    RAISE NOTICE '✓ Tabelas: clientes, servicos, agendamentos, pagamentos, inadimplentes, logs_atendimento, config_barbearia, logs_sistema';
+    RAISE NOTICE '✓ Campos Financeiros: forma_pagamento, preco_cobrado, valor_liquido, taxa_aplicada, status_pagamento';
+    RAISE NOTICE '✓ Telefone agora é opcional em clientes e agendamentos';
     RAISE NOTICE '✓ Constraint unique_appointment_slot (previne duplicatas)';
     RAISE NOTICE '✓ Índice idx_agendamentos_prod (performance)';
     RAISE NOTICE '✓ Função realizar_agendamento_seguro (RPC atômica)';
     RAISE NOTICE '✓ Função listar_horarios_livres (para o Bot)';
     RAISE NOTICE '✓ Função registrar_log (auditoria)';
-    RAISE NOTICE '✓ RLS habilitado em todas as tabelas';
+    RAISE NOTICE '✓ RLS com políticas SEGURAS (autenticados têm acesso, anon só consulta)';
     RAISE NOTICE '✓ Views: vw_agendamentos_completos, vw_agendamentos_hoje';
     RAISE NOTICE '✓ Dados iniciais: serviços e configurações';
     RAISE NOTICE '================================================';

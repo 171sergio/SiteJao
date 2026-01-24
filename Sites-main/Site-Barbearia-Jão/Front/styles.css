@@ -5,6 +5,63 @@
     box-sizing: border-box;
 }
 
+/* =====================================================
+   VARIÁVEIS CSS - Sistema de Design
+   ===================================================== 
+   Estas variáveis garantem consistência visual e facilitam
+   a manutenção de cores em todo o sistema, incluindo 
+   responsividade mobile onde usamos data-label nas tabelas.
+*/
+:root {
+    /* Cores Primárias */
+    --primary-color: #dc2626;
+    --primary-dark: #b91c1c;
+    --primary-darker: #991b1b;
+
+    /* Cores Secundárias */
+    --secondary-color: #4FC3F7;
+    --secondary-dark: #29B6F6;
+
+    /* Cores de Status */
+    --success-color: #4CAF50;
+    --error-color: #f44336;
+    --warning-color: #ff9800;
+    --info-color: #2196F3;
+
+    /* Cores de Background */
+    --bg-dark: #000000;
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2C2C2C;
+    --bg-tertiary: #2a2a2a;
+    --card-bg: rgba(44, 44, 44, 0.8);
+    --card-bg-solid: #2a2a2a;
+
+    /* Cores de Borda */
+    --border-color: #444;
+    --border-color-light: rgba(220, 38, 38, 0.2);
+    --border-color-medium: rgba(220, 38, 38, 0.3);
+
+    /* Cores de Texto */
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-muted: #888;
+    --text-muted-light: #aaa;
+    --text-muted-dark: #555;
+
+    /* Espaçamento */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 15px;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
@@ -3541,17 +3598,17 @@ body {
     justify-content: center;
     padding: 40px 20px;
     text-align: center;
-    color: #888;
-    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-    border: 2px dashed #444;
-    border-radius: 12px;
+    color: var(--text-muted, #888);
+    background: linear-gradient(135deg, var(--bg-primary, #1a1a1a) 0%, var(--bg-tertiary, #2a2a2a) 100%);
+    border: 2px dashed var(--border-color, #444);
+    border-radius: var(--radius-lg, 12px);
     min-height: 150px;
 }
 
 .no-data-message i {
     font-size: 48px;
     margin-bottom: 15px;
-    color: #555;
+    color: var(--text-muted-dark, #555);
     opacity: 0.7;
 }
 
@@ -4240,4 +4297,50 @@ body {
 #clientSearchModal,
 #quickClientModal {
     z-index: 2000;
+}
+
+@media (max-width: 768px) {
+
+    /* 
+     * RESPONSIVIDADE: Tabela para Cards
+     * 
+     * Transforma tabelas em cards empilhados verticalmente.
+     * O atributo data-label em cada <td> é usado para exibir
+     * o nome da coluna via CSS ::before { content: attr(data-label) }
+     * 
+     * IMPORTANTE: Usar variáveis CSS para cores garante consistência
+     * com o tema principal e facilita futuras alterações.
+     */
+
+    /* Esconde o cabeçalho original da tabela */
+    .app-table thead {
+        display: none;
+    }
+
+    /* Transforma cada linha (tr) num card isolado */
+    .app-table tr {
+        display: block;
+        background: var(--card-bg-solid, #2a2a2a);
+        margin-bottom: var(--spacing-md, 1rem);
+        border-radius: var(--radius-md, 8px);
+        padding: var(--spacing-sm, 10px);
+        border: 1px solid var(--border-color, #444);
+    }
+
+    /* Alinha cada célula (td) lateralmente */
+    .app-table td {
+        display: flex;
+        justify-content: space-between;
+        padding: var(--spacing-sm, 8px) 0;
+        border: none;
+        text-align: right;
+    }
+
+    /* Insere o nome da coluna via data-label */
+    .app-table td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        color: var(--text-muted-light, #aaa);
+        text-align: left;
+    }
 }

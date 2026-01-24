@@ -184,10 +184,10 @@
                 <div class="section-header">
                     <h3><i class="fas fa-calendar-alt"></i> Gerenciar Agendamentos</h3>
                     <div class="section-actions">
-                        <button id="addAppointmentBtn" class="add-btn" onclick="openAddAppointmentModal()">
+                        <button id="addAppointmentBtn" class="add-btn" data-action="open-add-appointment">
                             <i class="fas fa-plus"></i> Novo Agendamento
                         </button>
-                        <button id="retroactiveBtn" class="add-btn btn-retroactive" onclick="openRetroactiveModal()">
+                        <button id="retroactiveBtn" class="add-btn btn-retroactive" data-action="open-retro">
                             <i class="fas fa-history"></i> Registro Retroativo
                         </button>
                         <div class="filters">
@@ -199,7 +199,7 @@
                                 <option value="cancelado">Cancelado</option>
                             </select>
                             <input type="date" id="dateFilter" class="filter-date">
-                            <button id="refreshAppointments" class="refresh-btn" onclick="loadAppointments()">
+                            <button id="refreshAppointments" class="refresh-btn" data-action="refresh-appointments">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
@@ -248,18 +248,18 @@
                 <div class="section-header">
                     <h3><i class="fas fa-users"></i> Gerenciar Clientes</h3>
                     <div class="section-actions">
-                        <button id="addClientBtn" class="add-btn" onclick="openAddClientModal()">
+                        <button id="addClientBtn" class="add-btn" data-action="open-add-client">
                             <i class="fas fa-plus"></i> Novo Cliente
                         </button>
-                        <button id="importContactsBtn" class="add-btn" onclick="openImportContactsModal()"
+                        <button id="importContactsBtn" class="add-btn" data-action="open-import-contacts"
                             style="background: linear-gradient(135deg, #17a2b8, #138496);">
                             <i class="fas fa-download"></i> Importar Contatos
                         </button>
                         <div class="search-container">
                             <input type="text" id="clientSearch" placeholder="Buscar cliente..." class="search-input"
-                                onkeyup="if(event.key==='Enter') loadClients()">
+                                data-enter-action="refresh-clients">
                             <i class="fas fa-search search-icon"></i>
-                            <button id="refreshClients" class="refresh-btn" onclick="loadClients()"
+                            <button id="refreshClients" class="refresh-btn" data-action="refresh-clients"
                                 title="Atualizar lista">
                                 <i class="fas fa-arrows-rotate"></i>
                             </button>
@@ -292,15 +292,15 @@
                 <div class="section-header">
                     <h3><i class="fas fa-chart-bar"></i> Estatísticas</h3>
                     <div class="report-controls">
-                        <button class="filter-btn active" onclick="toggleReportsView()" id="toggleViewBtn">
+                        <button class="filter-btn active" data-action="toggle-reports-view" id="toggleViewBtn">
                             <i class="fas fa-chart-pie"></i> Ver Gráficos
                         </button>
                         <div class="date-filters">
-                            <button class="filter-btn" onclick="filterReports('today')">Hoje</button>
-                            <button class="filter-btn" onclick="filterReports('week')">7 Dias</button>
-                            <button class="filter-btn" onclick="filterReports('month')">Mês</button>
-                            <input type="date" id="reportStartDate" class="date-input" onchange="loadReports()">
-                            <input type="date" id="reportEndDate" class="date-input" onchange="loadReports()">
+                            <button class="filter-btn" data-action="filter-reports" data-period="today">Hoje</button>
+                            <button class="filter-btn" data-action="filter-reports" data-period="week">7 Dias</button>
+                            <button class="filter-btn" data-action="filter-reports" data-period="month">Mês</button>
+                            <input type="date" id="reportStartDate" class="date-input" data-change-action="load-reports">
+                            <input type="date" id="reportEndDate" class="date-input" data-change-action="load-reports">
                         </div>
                     </div>
                 </div>
@@ -355,15 +355,15 @@
                 <div class="section-header">
                     <h3><i class="fas fa-exclamation-triangle"></i> Clientes Inadimplentes</h3>
                     <div class="section-actions">
-                        <button id="addUnpaidBtn" class="add-btn" onclick="openAddUnpaidModal()">
+                        <button id="addUnpaidBtn" class="add-btn" data-action="open-add-unpaid">
                             <i class="fas fa-plus"></i>
                             Adicionar Inadimplente
                         </button>
                         <div class="filters">
                             <input type="text" id="unpaidClientFilter" class="filter-input"
                                 placeholder="Buscar por cliente ou telefone..."
-                                onkeyup="if(event.key==='Enter') loadUnpaidClients()">
-                            <button id="refreshUnpaid" class="refresh-btn" onclick="loadUnpaidClients()">
+                                data-enter-action="refresh-unpaid">
+                            <button id="refreshUnpaid" class="refresh-btn" data-action="refresh-unpaid">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
@@ -427,7 +427,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4>Novo Agendamento</h4>
-                <span class="close" onclick="closeAddModal()">&times;</span>
+                <span class="close" data-action="close-add-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="addForm">
@@ -436,11 +436,11 @@
                         <div class="client-search-container">
                             <input type="text" id="addNome" placeholder="Digite o nome do cliente..." required
                                 autocomplete="off">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('add')"
+                            <button type="button" class="btn-new-client" data-action="open-quick-client" data-target="add"
                                 title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('add')"
+                            <button type="button" class="btn-search-client" data-action="open-client-search" data-target="add"
                                 title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
@@ -491,7 +491,7 @@
 
                     <div class="form-group">
                         <label>Status:</label>
-                        <select id="addStatus" required onchange="togglePaymentMethodVisibility('add')">
+                        <select id="addStatus" required data-change-action="toggle-payment-method" data-prefix="add">
                             <option value="agendado">Agendado</option>
                             <option value="confirmado">Confirmado</option>
                             <option value="concluido">Concluído</option>
@@ -518,7 +518,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeAddModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-add-modal">Cancelar</button>
                 <button type="submit" form="addForm" class="btn-save">Agendar</button>
             </div>
         </div>
@@ -529,7 +529,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4>Editar Agendamento</h4>
-                <span class="close" onclick="closeModal()">&times;</span>
+                <span class="close" data-action="close-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="editForm">
@@ -540,11 +540,11 @@
                         <div class="client-search-container">
                             <input type="text" id="editNome" placeholder="Digite o nome do cliente..." required
                                 autocomplete="off">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('edit')"
+                            <button type="button" class="btn-new-client" data-action="open-quick-client" data-target="edit"
                                 title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('edit')"
+                            <button type="button" class="btn-search-client" data-action="open-client-search" data-target="edit"
                                 title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
@@ -595,7 +595,7 @@
 
                     <div class="form-group">
                         <label>Status:</label>
-                        <select id="editStatus" required onchange="togglePaymentMethodVisibility('edit')">
+                        <select id="editStatus" required data-change-action="toggle-payment-method" data-prefix="edit">
                             <option value="agendado">Agendado</option>
                             <option value="confirmado">Confirmado</option>
                             <option value="concluido">Concluído</option>
@@ -622,8 +622,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
-                <button type="button" class="btn-save" onclick="saveAppointment()">Salvar</button>
+                <button type="button" class="btn-cancel" data-action="close-modal">Cancelar</button>
+                <button type="button" class="btn-save" data-action="save-appointment">Salvar</button>
             </div>
         </div>
     </div>
@@ -633,10 +633,10 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4>Adicionar Cliente Inadimplente</h4>
-                <span class="close" onclick="closeAddUnpaidModal()">&times;</span>
+                <span class="close" data-action="close-add-unpaid">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="addUnpaidForm" onsubmit="addUnpaidClient(event)">
+                <form id="addUnpaidForm" data-submit-action="add-unpaid-client">
                     <input type="hidden" id="editUnpaidId">
                     <div class="form-group">
                         <label>Tipo de Inadimplência:</label>
@@ -664,12 +664,12 @@
                             </select>
                             <input type="date" id="filterByDate" class="filter-date" placeholder="Filtrar por data">
                             <button type="button" id="clearFiltersBtn" class="btn-clear-filters"
-                                onclick="clearAppointmentFilters()" title="Limpar Filtros">
+                                data-action="clear-unpaid-filters" title="Limpar Filtros">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
                         <label>Agendamento:</label>
-                        <select id="addUnpaidAppointment" onchange="fillFromAppointment()" size="5">
+                        <select id="addUnpaidAppointment" data-change-action="fill-from-appointment" size="5">
                             <option value="">Selecione um agendamento</option>
                         </select>
                     </div>
@@ -679,11 +679,11 @@
                         <div class="client-search-container">
                             <input type="text" id="addUnpaidNome" placeholder="Digite o nome do cliente..." required
                                 autocomplete="off">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientModal('unpaid')"
+                            <button type="button" class="btn-new-client" data-action="open-quick-client" data-target="unpaid"
                                 title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchModal('unpaid')"
+                            <button type="button" class="btn-search-client" data-action="open-client-search" data-target="unpaid"
                                 title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
@@ -730,7 +730,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeAddUnpaidModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-add-unpaid">Cancelar</button>
                 <button type="submit" form="addUnpaidForm" class="btn-save">Adicionar</button>
             </div>
         </div>
@@ -741,7 +741,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4>Adicionar Novo Cliente</h4>
-                <span class="close" onclick="closeAddClientModal()">&times;</span>
+                <span class="close" data-action="close-add-client">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="addClientForm" onsubmit="addClient(event)">
@@ -790,7 +790,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeAddClientModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-add-client">Cancelar</button>
                 <button type="submit" form="addClientForm" class="btn-save">Adicionar Cliente</button>
             </div>
         </div>
@@ -801,7 +801,7 @@
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
                 <h4><i class="fas fa-download"></i> Importar Contatos do WhatsApp</h4>
-                <span class="close" onclick="closeImportContactsModal()">&times;</span>
+                <span class="close" data-action="close-import-contacts">&times;</span>
             </div>
             <div class="modal-body">
                 <p style="color: #b0b0b0; margin-bottom: 20px;">Informe seu primeiro nome para importar os contatos da
@@ -817,8 +817,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeImportContactsModal()">Cancelar</button>
-                <button type="button" class="btn-save" id="importContactsBtn" onclick="importContactsFromWhatsApp()">
+                <button type="button" class="btn-cancel" data-action="close-import-contacts">Cancelar</button>
+                <button type="button" class="btn-save" id="importContactsBtn" data-action="import-contacts-whatsapp">
                     <i class="fas fa-download"></i> Importar
                 </button>
             </div>
@@ -830,7 +830,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4>Editar Cliente</h4>
-                <span class="close" onclick="closeEditClientModal()">&times;</span>
+                <span class="close" data-action="close-edit-client">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="editClientForm" onsubmit="updateClient(event)">
@@ -881,7 +881,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeEditClientModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-edit-client">Cancelar</button>
                 <button type="submit" form="editClientForm" class="btn-save">Salvar Alterações</button>
             </div>
         </div>
@@ -900,7 +900,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4>Cadastro Rápido de Cliente</h4>
-                <span class="close" onclick="closeQuickClientModal()">&times;</span>
+                <span class="close" data-action="close-quick-client">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="quickClientForm" onsubmit="addQuickClient(event)">
@@ -921,7 +921,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeQuickClientModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-quick-client">Cancelar</button>
                 <button type="submit" form="quickClientForm" class="btn-save">Cadastrar e Usar</button>
             </div>
         </div>
@@ -932,20 +932,20 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Buscar Cliente Existente</h3>
-                <span class="close" onclick="closeClientSearchModal()">&times;</span>
+                <span class="close" data-action="close-client-search">&times;</span>
             </div>
             <div class="search-section">
                 <div class="form-group">
                     <label for="clientSearchInput">Buscar por nome ou telefone</label>
                     <input type="text" id="clientSearchInput" placeholder="Digite para buscar..."
-                        oninput="searchExistingClients()">
+                        data-input-action="search-existing-clients">
                 </div>
                 <div id="clientSearchResults" class="client-search-results">
                     <div class="search-loading">Digite pelo menos 2 caracteres para buscar...</div>
                 </div>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-cancel" onclick="closeClientSearchModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-client-search">Cancelar</button>
             </div>
         </div>
     </div>
@@ -955,7 +955,7 @@
         <div class="modal-content modal-small">
             <div class="modal-header">
                 <h4><i class="fas fa-check-circle"></i> Concluir Atendimento</h4>
-                <span class="close" onclick="closeQuickCompleteModal()">&times;</span>
+                <span class="close" data-action="close-quick-complete">&times;</span>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="quickCompleteId">
@@ -982,8 +982,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeQuickCompleteModal()">Cancelar</button>
-                <button type="button" class="btn-save btn-complete" onclick="confirmQuickComplete()">
+                <button type="button" class="btn-cancel" data-action="close-quick-complete">Cancelar</button>
+                <button type="button" class="btn-save btn-complete" data-action="confirm-quick-complete">
                     <i class="fas fa-check"></i> Confirmar Pagamento
                 </button>
             </div>
@@ -995,7 +995,7 @@
         <div class="modal-content">
             <div class="modal-header modal-header-retroactive">
                 <h4><i class="fas fa-history"></i> Registro Retroativo</h4>
-                <span class="close" onclick="closeRetroactiveModal()">&times;</span>
+                <span class="close" data-action="close-retro">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="retroactive-info">
@@ -1011,11 +1011,11 @@
                             <input type="text" id="retroNome" placeholder="Digite o nome do cliente..." required
                                 autocomplete="off">
                             <input type="hidden" id="retroClienteId">
-                            <button type="button" class="btn-new-client" onclick="openQuickClientForRetro()"
+                            <button type="button" class="btn-new-client" data-action="open-quick-client" data-target="retro"
                                 title="Cadastrar novo cliente">
                                 <i class="fas fa-user-plus"></i>
                             </button>
-                            <button type="button" class="btn-search-client" onclick="openClientSearchForRetro()"
+                            <button type="button" class="btn-search-client" data-action="open-client-search" data-target="retro"
                                 title="Buscar Cliente">
                                 <i class="fas fa-search"></i>
                             </button>
@@ -1085,7 +1085,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeRetroactiveModal()">Cancelar</button>
+                <button type="button" class="btn-cancel" data-action="close-retro">Cancelar</button>
                 <button type="submit" form="retroactiveForm" class="btn-save">
                     <i class="fas fa-save"></i> Salvar Atendimento
                 </button>
@@ -1098,7 +1098,7 @@
         <div class="modal-content modal-small">
             <div class="modal-header">
                 <h4><i class="fas fa-money-bill-wave"></i> Confirmar Pagamento</h4>
-                <span class="close" onclick="closeInadimplentePaymentModal()">&times;</span>
+                <span class="close" data-action="close-inadimplente-payment">&times;</span>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="inadimplentePaymentId">
@@ -1110,7 +1110,7 @@
                 <div class="form-group">
                     <label><i class="fas fa-credit-card"></i> Como foi pago?</label>
                     <select id="inadimplentePaymentMethod" class="payment-select-large"
-                        onchange="updateInadimplentePaymentSummary()">
+                        data-change-action="update-inadimplente-summary">
                         <option value="dinheiro">💵 Dinheiro (0%)</option>
                         <option value="pix">📱 Pix (0%)</option>
                         <option value="debito">💳 Débito (taxa 1.38%)</option>
@@ -1124,8 +1124,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeInadimplentePaymentModal()">Cancelar</button>
-                <button type="button" class="btn-save btn-complete" onclick="confirmInadimplentePayment()">
+                <button type="button" class="btn-cancel" data-action="close-inadimplente-payment">Cancelar</button>
+                <button type="button" class="btn-save btn-complete" data-action="confirm-inadimplente-payment">
                     <i class="fas fa-check"></i> Confirmar Pagamento
                 </button>
             </div>
@@ -1133,7 +1133,9 @@
     </div>
 
     <script src="config.js?v=2.0"></script>
-    <script src="script.js?v=2.0"></script>
+    <!-- ES6 Module - Arquitetura Modular -->
+    <script type="module" src="src/main.js"></script>
+    <!-- Script legado comentado para rollback: <script src="script.js?v=2.0"></script> -->
 </body>
 
 </html>
